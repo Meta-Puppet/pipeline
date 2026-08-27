@@ -1,9 +1,47 @@
 <title>自分自身を操作する</title>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Serif+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;700&display=swap');
 
 :root{
+  /* dark-first, to match the MetaPuppet main site */
+  --paper:#020202;
+  --paper-raised:#0e0e10;
+  --ink:#f2f0ee;
+  --ink-soft:#9a9a9e;
+  --ink-faint:#5c5c60;
+  --rule:#232326;
+  --rule-strong:#35353a;
+  --accent:#e78fb3;
+  --accent-soft:#3a2530;
+  --accent2:#6fbfc4;
+  --accent2-soft:#193638;
+  --code-bg:#0a0a0b;
+  --code-ink:#e7e6e0;
+  --code-accent:#e78fb3;
+  --code-accent2:#6fbfc4;
+}
+
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --paper:#faf9f6;
+    --paper-raised:#f2f0eb;
+    --ink:#171a1d;
+    --ink-soft:#4b5459;
+    --ink-faint:#8b9296;
+    --rule:#d8d5cd;
+    --rule-strong:#b9b5aa;
+    --accent:#b8500e;
+    --accent-soft:#e8c7a9;
+    --accent2:#14646b;
+    --accent2-soft:#bcdadc;
+    --code-bg:#171a1d;
+    --code-ink:#e7e6e0;
+    --code-accent:#e0954f;
+    --code-accent2:#6fbfc4;
+  }
+}
+:root[data-theme="light"]{
   --paper:#faf9f6;
   --paper-raised:#f2f0eb;
   --ink:#171a1d;
@@ -16,43 +54,6 @@
   --accent2:#14646b;
   --accent2-soft:#bcdadc;
   --code-bg:#171a1d;
-  --code-ink:#e7e6e0;
-  --code-accent:#e0954f;
-  --code-accent2:#6fbfc4;
-}
-
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#15171a;
-    --paper-raised:#1c1f22;
-    --ink:#eeece6;
-    --ink-soft:#b7bcbe;
-    --ink-faint:#797f82;
-    --rule:#33373a;
-    --rule-strong:#484d50;
-    --accent:#e0954f;
-    --accent-soft:#4a3120;
-    --accent2:#6fbfc4;
-    --accent2-soft:#1c3638;
-    --code-bg:#0d0f11;
-    --code-ink:#e7e6e0;
-    --code-accent:#e0954f;
-    --code-accent2:#6fbfc4;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#15171a;
-  --paper-raised:#1c1f22;
-  --ink:#eeece6;
-  --ink-soft:#b7bcbe;
-  --ink-faint:#797f82;
-  --rule:#33373a;
-  --rule-strong:#484d50;
-  --accent:#e0954f;
-  --accent-soft:#4a3120;
-  --accent2:#6fbfc4;
-  --accent2-soft:#1c3638;
-  --code-bg:#0d0f11;
   --code-ink:#e7e6e0;
   --code-accent:#e0954f;
   --code-accent2:#6fbfc4;
@@ -82,7 +83,7 @@ body{
   border-bottom:1px solid var(--rule);
 }
 .cover-kicker{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:11.5px;
   letter-spacing:.18em;
   color:var(--accent);
@@ -99,7 +100,7 @@ body{
   display:inline-block;
 }
 .cover h1{
-  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
   font-weight:800;
   font-size:clamp(32px,5.6vw,48px);
   line-height:1.4;
@@ -122,7 +123,7 @@ body{
   display:flex;
   flex-wrap:wrap;
   gap:28px 40px;
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:12px;
   color:var(--ink-soft);
   border-top:1px solid var(--rule);
@@ -159,7 +160,7 @@ body{
   min-width:104px;
   padding:6px 14px;
   position:relative;
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
 }
 .pl-step .n{
   font-size:10px;
@@ -196,21 +197,21 @@ body{
   margin-bottom:8px;
 }
 .chapter-num{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:13px;
   color:var(--accent2);
   letter-spacing:.05em;
   white-space:nowrap;
 }
 .chapter-stage{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:10.5px;
   letter-spacing:.1em;
   text-transform:uppercase;
   color:var(--ink-faint);
 }
 .chapter h2{
-  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
   font-weight:700;
   font-size:26px;
   margin:6px 0 30px;
@@ -226,7 +227,7 @@ body{
 }
 
 .chapter h3{
-  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
   font-size:18.5px;
   font-weight:700;
   margin:38px 0 14px;
@@ -258,7 +259,7 @@ body{
   break-inside:avoid;
 }
 .code-label{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:10.5px;
   color:var(--ink-faint);
   margin-bottom:6px;
@@ -270,7 +271,7 @@ pre{
   padding:18px 20px;
   border-radius:3px;
   overflow-x:auto;
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:12.5px;
   line-height:1.7;
   margin:0;
@@ -278,7 +279,7 @@ pre{
 pre .k{color:var(--code-accent2);}
 pre .c{color:var(--code-accent);}
 code{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   background:var(--paper-raised);
   padding:1px 5px;
   border-radius:2px;
@@ -302,7 +303,7 @@ code{
 }
 .dg-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
 .dg-box{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:12px;
   border:1px solid var(--rule-strong);
   background:var(--paper);
@@ -351,11 +352,11 @@ table.data td{
   padding:10px 14px 10px 0;
   vertical-align:top;
 }
-table.data td.num{font-family:"JetBrains Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
+table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
 table.data td.label{font-weight:700;white-space:nowrap;}
 
 sup.fnref{
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:10px;
   color:var(--accent2);
   margin-left:1px;
@@ -385,7 +386,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   align-items:flex-end;
   font-size:13px;
   color:var(--ink-faint);
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
 }
 
 .pagefoot{
@@ -393,7 +394,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   margin:0 auto;
   padding:30px 40px 60px;
   color:var(--ink-faint);
-  font-family:"JetBrains Mono",monospace;
+  font-family:"IBM Plex Mono",monospace;
   font-size:11px;
   text-align:center;
   letter-spacing:.05em;
@@ -755,34 +756,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <div>MetaPuppet — Software Implementation Notes</div>
     <div>清水</div>
   </div>
-</section>
 
-<section class="chapter">
-  <div class="chapter-head">
-    <span class="chapter-num">Credits</span>
-    <span class="chapter-stage">Content &amp; Assets</span>
-  </div>
-  <h2>クレジット</h2>
-  <p class="lede">ここまではソフトウェアの実装記録だったが、体験を構成しているのはコードだけではない。使用した楽曲・モデル・ソフトウェアについて、分かっている範囲で記載する。</p>
-
-  <h3>楽曲</h3>
-  <p>会場で流れる音楽（「Amber Decay」「Tap Here」「Evento」「Serendipity March」の各シーンで使用）は、いずれもKangding Rayの楽曲の一部を使用している。これらの著作権は同アーティストに帰属し、当方が作曲・制作したものではない。本作は学生向けのVRコンテストに向けて制作した非商用のプロトタイプであり、音楽はその中の一要素であって、作品全体ではない。展示や配布の前に、権利者への確認、または収録範囲の見直しを行う予定である。</p>
-
-  <h3>3Dモデル・アセット</h3>
-  <p>キャラクターや背景の一部には、<a href="https://assetstore.unity.com/packages/3d/environments/polygon-prototype-pack-art-by-synty-137126">POLYGON Prototype Pack（Art by Synty）</a>をUnity Asset Store経由で使用している。</p>
-  <p>彫像を模したモデルとしては、サモトラケのニケ、ラオコーン像、アポロン・ベルヴェデーレ、ミケランジェロのダビデ像（頭部）の形状を使用している。いずれも著名な彫刻作品を再現した3Dモデルで、CC0（パブリックドメイン相当）またはCC-BY（表示さえすれば自由に利用可）で公開されているものを利用する想定である。具体的な配布元URLはこの記録の執筆時点では未整理のため、展示・配布前にモデルごとのライセンス表記（CC-BYのものは作者名の表示）を別途まとめる。このほかWoodmanという名称のキャラクターモデルも使用しているが、入手経路の記録が残っておらず、出典を特定できていない。</p>
-
-  <h3>ソフトウェア・ライブラリ</h3>
-  <table class="data">
-    <tr><th>名称</th><th>用途</th></tr>
-    <tr><td><a href="https://github.com/PeterL1n/RobustVideoMatting">RVM (Robust Video Matting)</a></td><td>人物マスキング（第4・5章）</td></tr>
-    <tr><td><a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a></td><td>姿勢推定（第5章）</td></tr>
-    <tr><td><a href="https://onnxruntime.ai/">ONNX Runtime</a></td><td>推論エンジン（MITライセンス, Microsoft）</td></tr>
-    <tr><td><a href="https://www.videolan.org/developers/x264.html">x264</a></td><td>映像エンコード（第2章）</td></tr>
-    <tr><td><a href="https://github.com/CristianQiu/Unity-URP-Volumetric-Light">URP Volumetric Fog/Light</a></td><td>Unity用ボリューメトリックフォグ（CristianQiu氏）</td></tr>
-  </table>
-
-  <p>各ライブラリの正確なライセンス条件は、リンク先のリポジトリを参照してほしい。この記録では要約や解釈を加えず、名称と用途のみを記載している。</p>
+  <p style="margin-top:28px;"><a href="https://meta-puppet.github.io/credits/">使用した楽曲・モデル・ソフトウェアのクレジットはこちら</a></p>
 </section>
 
 </div>
