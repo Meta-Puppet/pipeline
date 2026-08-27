@@ -287,6 +287,14 @@ code{
   border:1px solid var(--rule);
 }
 
+.chapter a, .cover a, .footnotes a{
+  color:var(--accent2);
+  text-decoration-color:var(--rule-strong);
+  text-underline-offset:2px;
+}
+.chapter a:visited, .cover a:visited, .footnotes a:visited{color:var(--accent2);}
+.chapter a:hover, .cover a:hover, .footnotes a:hover{color:var(--accent);}
+
 .diagram{
   margin:30px 0;
   border:1px solid var(--rule);
@@ -570,7 +578,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 };</pre>
   </div>
 
-  <p>誤り訂正には、複数個の欠損を復元できるReed-Solomon系<sup class="fnref" id="fnref-rs"><a href="#fn-rs">[1]</a></sup>ではなく、1フレームにつきXORパリティを1個だけ追加する方式を使っている。理論上は2個以上のチャンクが欠けると復元できないが、パリティの計算がXOR一回で済み、実装も単純になる。1フレームの寿命がミリ秒単位のこの用途では、複数欠損に対応する複雑な誤り訂正の計算に時間をかけるより、次のフレームをそのまま受け取った方が結果的に速いと判断した。誤り訂正の手厚さ（FECのグループサイズ）も、第2章の重要度マップを再利用してタイルごとに変えている。</p>
+  <p>誤り訂正には、複数個の欠損を復元できるReed-Solomon系<sup class="fnref" id="fnref-rs"><a href="#fn-rs">[1]</a></sup>ではなく、1フレームにつきXORパリティを1個だけ追加する単一パリティ検査符号（single parity check code）を使っている。理論上は2個以上のチャンクが欠けると復元できないが、パリティの計算がXOR一回で済み、実装も単純になる。1フレームの寿命がミリ秒単位のこの用途では、複数欠損に対応する複雑な誤り訂正の計算に時間をかけるより、次のフレームをそのまま受け取った方が結果的に速いと判断した。誤り訂正の手厚さ（FECのグループサイズ）も、第2章の重要度マップを再利用してタイルごとに変えている。</p>
 
   <p>受信側は、直近何秒かでどれだけパケットが届いていて、どれだけ欠けていたかを10Hzで数え、その結果を送信側に送り返している。送信側はこれを見て、回線が詰まっていそうなら送出のペースを落とし、余裕がありそうなら戻す、という調整をしている。もう一つ、キーフレーム（それ単体で映像を復元できる特別なフレーム。詳しくは後述）が全部届く前に、次の新しいフレームに追い越されてしまった場合には、受信側から送信側へ1回だけ再送要求のパケットを送る仕組みも入れている。この再送要求パケットには、実装上KEYFRAME_NACKという名前をつけている<sup class="fnref" id="fnref-nack"><a href="#fn-nack">[2]</a></sup>。</p>
 
@@ -602,7 +610,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">GPU Segmentation Backend</span>
   </div>
   <h2>TensorRTに置き換えて高速化をする</h2>
-  <p class="lede">PC側の人物マスキングに使っているRVMの推論バックエンドが、GPU世代の変更だけで壊れた。cuDNN経由のCUDA EPを捨て、<a href="https://qiita.com/Hiroaki-K4/items/e8dc965c7640c67fdf02">TensorRT</a>へ乗り換えて動かし直すまでの経緯を記録する。</p>
+  <p class="lede">PC側の人物マスキングに使っているRVMの推論を、できるだけ速く、自然な見た目で動かすための最適化を重ねている。その一つが、GPU世代の変更で壊れた推論バックエンドを、cuDNN経由のCUDA EPから<a href="https://qiita.com/Hiroaki-K4/items/e8dc965c7640c67fdf02">TensorRT</a>へ乗り換えた経緯である。</p>
 
   <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVM（Robust Video Matting）というモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
 
