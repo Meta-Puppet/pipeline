@@ -522,7 +522,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>左右の映像は、1枚の画像の左半分と右半分にそれぞれの目を並べるSide-by-Side（SBS）方式<sup class="fnref" id="fnref-interleave"><a href="#fn-interleave">[1]</a></sup>でまとめている。SBSにした理由は主に描画側にある。後段のVR表示シェーダーが1枚のテクスチャのアップロードだけで両目分をまかなえるため、伝送量とテクスチャ転送回数を抑えられる（詳細は第6章）。</p>
 
-  <p>もう一つ、実装として組み込んでいるのが、Raspberry Pi上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM（Robust Video Matting）</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Pi上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
+  <p>もう一つ、実装として組み込んでいるのが、Raspberry Pi上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Pi上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
 
   <div class="spec">
     <div class="spec-title">エンコーダの実装値</div>
@@ -606,7 +606,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
   <h2>TensorRTに置き換えて高速化をする</h2>
 
-  <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVM（Robust Video Matting）というモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
+  <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVMというモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
 
   <p>RVMのrefiner部分にある、depthwise convolutionという種類の畳み込み層（4か所）が、cuDNN Frontend<sup class="fnref" id="fnref-cudnnfe"><a href="#fn-cudnnfe">[2]</a></sup>の内部で失敗するようになった。エラーメッセージは短く、原因の手がかりはほとんど含まれていない。この手の一行エラーというのは、読んだ瞬間は情報が書いてあるように見えて、実際には「失敗しました」以上のことを何も教えてくれない、という性質を持っている。仕方がないので、乏しい状況証拠だけを頼りに推理を組み立てることになる。最初に立てた仮説は、「depthwiseはgroup convという特殊な形態だから、新しいGPU世代向けのカーネルがまだ用意されていないのだろう」というものだった。今にして思えば早計な仮説だった。</p>
 
