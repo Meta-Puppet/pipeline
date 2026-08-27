@@ -467,9 +467,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">Latency Budget</span>
   </div>
   <h2>各区間でのレイテンシの問題と対策</h2>
-  <p class="lede">自分の動きとアバターの動きにズレがあると、体験は「操作している感覚」ではなく「映像を見ている感覚」に変わる<sup class="fnref" id="fnref-ownership"><a href="#fn-ownership">[1]</a></sup>。区間ごとに問題の種類が違うので、対策も区間ごとに別々に打つ必要がある。</p>
 
-  <p>パイプラインは、カメラでの撮影からVRへの描画まで、性質の異なる4つの区間を通る。カメラからの伝送経路、ネットワークの伝送経路、PC側でのGPU推論の経路、そして描画までの経路。それぞれの区間で起きる遅延の原因は別物で、対策も別々に実装している。以下にまとめる。</p>
+  <p>自分の動きとアバターの動きにズレがあると、体験は「操作している感覚」ではなく「映像を見ている感覚」に変わる<sup class="fnref" id="fnref-ownership"><a href="#fn-ownership">[1]</a></sup>。パイプラインは、カメラでの撮影からVRへの描画まで、性質の異なる4つの区間を通る。カメラからの伝送経路、ネットワークの伝送経路、PC側でのGPU推論の経路、そして描画までの経路。それぞれの区間で起きる遅延の原因は別物で、対策も別々に実装している。以下にまとめる。</p>
 
   <table class="data">
     <caption>区間ごとの問題と実装上の対策</caption>
@@ -516,7 +515,6 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">Stereo Capture / Encode</span>
   </div>
   <h2>ステレオカメラとRaspberry Pi上のエンコード</h2>
-  <p class="lede">映像の圧縮には、Raspberry Piのハードウェアエンコーダではなく、ソフトウェアのx264を使っている。</p>
 
   <p>そもそもステレオカメラ自体、既製品を買ってきたわけではない。Raspberry Pi 5にRaspberry Pi用のカメラモジュールを2台取り付けて組み立てている。組み立てにあたっては、Raspberry Pi 5とカメラモジュールでステレオビジョンを構成した産業向けの事例（<a href="https://techietechnology.co.jp/2025/06/10/3d-stereo-vision-system-3d-industrial-raspberry-pi-5/">techietechnology.co.jp, 2025</a>）を参考にした。専用のグローバルシャッターカメラや外部同期のハードウェアを使わなくても、Raspberry Pi 5であれば安価なカメラモジュール2台の映像を実用的な遅延で処理できる、という設計方針をそのまま踏襲している。</p>
 
@@ -556,7 +554,6 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">Custom UDP Transport</span>
   </div>
   <h2>独自のUDP伝送プロトコル</h2>
-  <p class="lede">受信側は、フレーム番号が進んでいるものだけを常に採用する。</p>
 
   <p>PCへの映像伝送にTCPを使わなかったのは、TCPが「ロスしたパケットを再送してでも順序通りに完全な形で届ける」ことを保証する仕組みだからである。この保証は、動いている自分の体をリアルタイムに映すという用途には合わない。少し前の完全な映像が届くより、今この瞬間の、多少欠けていてもいいから一番新しい映像が届くことの方が重要になる。そのため独自のUDPベースのフレーミングプロトコルを実装し、受信側は常に一番進んでいるフレーム番号のものだけを組み立てる設計にしている。</p>
 
@@ -609,7 +606,6 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">GPU Segmentation Backend</span>
   </div>
   <h2>TensorRTに置き換えて高速化をする</h2>
-  <p class="lede">PC側の人物マスキングに使っているRVMの推論を、できるだけ速く、自然な見た目で動かすための最適化を重ねている。その一つが、GPU世代の変更で壊れた推論バックエンドを、cuDNN経由のCUDA EPから<a href="https://qiita.com/Hiroaki-K4/items/e8dc965c7640c67fdf02">TensorRT</a>へ乗り換えた経緯である。</p>
 
   <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVM（Robust Video Matting）というモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
 
@@ -685,7 +681,6 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">GPU-Resident Pipeline / Pose / Hand Tracking</span>
   </div>
   <h2>マスキング、姿勢推定、手指トラッキングの合成</h2>
-  <p class="lede">RVMとRTMPoseはGPU上に常駐して処理を続け、操作の判定はQuestの手指トラッキングが持つ。</p>
 
   <p>体を切り出したあと、そのシルエットをVR内のアバターの動きに変換するには、関節や骨格の位置を推定する必要がある。ここではMediaPipeではなく<a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a>を使っている。理由は、RTMPoseがRVMと同じD3D11<sup class="fnref" id="fnref-d3d11"><a href="#fn-d3d11">[1]</a></sup>/CUDA相互運用の枠組みに乗り、CPUへ映像を戻すことなくGPU上に常駐したまま処理を回せるためである。RTMPoseは、RVMのマスクを常に受け取るわけではなく、目のID（左右）が一致していること、マスクが未来のフレームのものでないこと、許容ラグの範囲内であることを確認したうえで受け取る。この条件を満たさない場合はマスクを使わず、それでも体験自体が止まらないのは、Questのハンド・パームトラッキングが常にゲームプレイ上の正として扱われ、RVMやRTMPoseの結果とは独立して動いているためである。マスクと姿勢推定は、あくまで見た目の合成に使われるレイヤーであり、操作の判定そのものには使っていない。</p>
 
@@ -725,7 +720,6 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">VR Display Shader</span>
   </div>
   <h2>SBSシェーダーで両目・色変換・合成をまとめて処理する</h2>
-  <p class="lede">1枚のテクスチャで、両目の描画・色空間変換・人物合成の3つを片付ける。</p>
 
   <p>VRヘッドセットへ表示するシェーダー（MetaPuppetSbsUnlit.shader）にも、伝送量を減らすための工夫を入れている。第2章で触れたSBS（Side-by-Side）パッキングは、Unityの<a href="https://docs.unity3d.com/Manual/SinglePassInstancing.html">シングルパス・インスタンシング</a>（1回の描画コールで両目分を処理する方式）と相性がよい。1枚のテクスチャをGPUに一度アップロードするだけで、左右それぞれの描画時にUV座標のUの半分だけをずらして読むことで両目分をまかなえるため、両目ぶん別々にテクスチャを転送・バインドする必要がなくなる。</p>
 
