@@ -515,16 +515,16 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-num">Chapter 02</span>
     <span class="chapter-stage">Stereo Capture / Encode</span>
   </div>
-  <h2>ステレオカメラとRaspberry Piくん上のエンコード</h2>
-  <p class="lede">映像の圧縮には、Raspberry Piくんのハードウェアエンコーダではなく、ソフトウェアのx264を使っている。</p>
+  <h2>ステレオカメラとRaspberry Pi上のエンコード</h2>
+  <p class="lede">映像の圧縮には、Raspberry Piのハードウェアエンコーダではなく、ソフトウェアのx264を使っている。</p>
 
   <p>そもそもステレオカメラ自体、既製品を買ってきたわけではない。Raspberry Pi 5にRaspberry Pi用のカメラモジュールを2台取り付けて組み立てている。組み立てにあたっては、Raspberry Pi 5とカメラモジュールでステレオビジョンを構成した産業向けの事例（<a href="https://techietechnology.co.jp/2025/06/10/3d-stereo-vision-system-3d-industrial-raspberry-pi-5/">techietechnology.co.jp, 2025</a>）を参考にした。専用のグローバルシャッターカメラや外部同期のハードウェアを使わなくても、Raspberry Pi 5であれば安価なカメラモジュール2台の映像を実用的な遅延で処理できる、という設計方針をそのまま踏襲している。</p>
 
-  <p>Raspberry Piくんにはハードウェアの映像エンコーダが載っているが、今回は<a href="https://www.videolan.org/developers/x264.html">libx264</a>によるソフトウェアエンコードを使っている。理由は、この体験では人物が写っている領域とそうでない領域とで圧縮の力配分を変えたい、つまりマクロブロックごとに量子化の強さを個別に指定したいのに、Raspberry Piくんのハードウェアエンコーダはあらかじめ用意されたレート制御モード（CBR/VBRなど）を選ぶだけのインターフェースしか持たず、フレーム内の特定の領域だけ量子化を変えるような細かい指定を外から差し込む余地がないからである。x264はソフトウェア実装なので、フレームごと・マクロブロックごとに量子化オフセットを自分で計算してAPI経由で渡せる。プリセットをultrafast・zerolatencyにし、Bフレームと先読みとCABACを切って、圧縮効率よりレイテンシを優先する設定も同時に組んでいる。</p>
+  <p>Raspberry Piにはハードウェアの映像エンコーダが載っているが、今回は<a href="https://www.videolan.org/developers/x264.html">libx264</a>によるソフトウェアエンコードを使っている。理由は、この体験では人物が写っている領域とそうでない領域とで圧縮の力配分を変えたい、つまりマクロブロックごとに量子化の強さを個別に指定したいのに、Raspberry Piのハードウェアエンコーダはあらかじめ用意されたレート制御モード（CBR/VBRなど）を選ぶだけのインターフェースしか持たず、フレーム内の特定の領域だけ量子化を変えるような細かい指定を外から差し込む余地がないからである。x264はソフトウェア実装なので、フレームごと・マクロブロックごとに量子化オフセットを自分で計算してAPI経由で渡せる。プリセットをultrafast・zerolatencyにし、Bフレームと先読みとCABACを切って、圧縮効率よりレイテンシを優先する設定も同時に組んでいる。</p>
 
   <p>左右の映像は、1枚の画像の左半分と右半分にそれぞれの目を並べるSide-by-Side（SBS）方式<sup class="fnref" id="fnref-interleave"><a href="#fn-interleave">[1]</a></sup>でまとめている。SBSにした理由は主に描画側にある。後段のVR表示シェーダーが1枚のテクスチャのアップロードだけで両目分をまかなえるため、伝送量とテクスチャ転送回数を抑えられる（詳細は第6章）。</p>
 
-  <p>もう一つ、実装として組み込んでいるのが、Raspberry Piくん上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM（Robust Video Matting）</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Piくん上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
+  <p>もう一つ、実装として組み込んでいるのが、Raspberry Pi上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM（Robust Video Matting）</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Pi上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
 
   <div class="spec">
     <div class="spec-title">エンコーダの実装値</div>
@@ -560,7 +560,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>PCへの映像伝送にTCPを使わなかったのは、TCPが「ロスしたパケットを再送してでも順序通りに完全な形で届ける」ことを保証する仕組みだからである。この保証は、動いている自分の体をリアルタイムに映すという用途には合わない。少し前の完全な映像が届くより、今この瞬間の、多少欠けていてもいいから一番新しい映像が届くことの方が重要になる。そのため独自のUDPベースのフレーミングプロトコルを実装し、受信側は常に一番進んでいるフレーム番号のものだけを組み立てる設計にしている。</p>
 
-  <p>Ethernet上のパケットは、<a href="https://en.wikipedia.org/wiki/IP_fragmentation">IPフラグメンテーション</a>を避けるため1500バイトのMTUに収まるようチャンクに分割している。受信側はフレーム番号が後退しているパケットを破棄し、Raspberry Piくんの再起動などでフレーム番号が0に戻るような場合に備えて、連続して番号が後退したパケットが一定数（15回）続いたら基準をリセットするガードも入れている。</p>
+  <p>Ethernet上のパケットは、<a href="https://en.wikipedia.org/wiki/IP_fragmentation">IPフラグメンテーション</a>を避けるため1500バイトのMTUに収まるようチャンクに分割している。受信側はフレーム番号が後退しているパケットを破棄し、Raspberry Piの再起動などでフレーム番号が0に戻るような場合に備えて、連続して番号が後退したパケットが一定数（15回）続いたら基準をリセットするガードも入れている。</p>
 
   <div class="code-wrap">
     <div class="code-label">MetaPuppetPacket.cs のパケットヘッダ（56バイト、MTU 1500に収まるようチャンク化）</div>
@@ -664,7 +664,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
       <tr><td>shape tensorの型</td><td class="num">INT64からINT32へキャスト</td></tr>
       <tr><td>フォールバック順</td><td class="num">AUTO → TensorRT-RTX → CUDA → CPU</td></tr>
       <tr><td>検証方法</td><td class="num">onnx.checker + shape inference<br>元モデルとの出力突合（pha, r1〜r4）</td></tr>
-      <tr><td>Raspberry Piくん上のCPUフォールバック</td><td class="num">約18ms/frame、30fps以内に収まる</td></tr>
+      <tr><td>Raspberry Pi上のCPUフォールバック</td><td class="num">約18ms/frame、30fps以内に収まる</td></tr>
     </table>
   </div>
 
