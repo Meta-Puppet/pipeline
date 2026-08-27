@@ -1,0 +1,792 @@
+<title>自分自身を操作する</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Serif+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --paper:#faf9f6;
+  --paper-raised:#f2f0eb;
+  --ink:#171a1d;
+  --ink-soft:#4b5459;
+  --ink-faint:#8b9296;
+  --rule:#d8d5cd;
+  --rule-strong:#b9b5aa;
+  --accent:#b8500e;
+  --accent-soft:#e8c7a9;
+  --accent2:#14646b;
+  --accent2-soft:#bcdadc;
+  --code-bg:#171a1d;
+  --code-ink:#e7e6e0;
+  --code-accent:#e0954f;
+  --code-accent2:#6fbfc4;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#15171a;
+    --paper-raised:#1c1f22;
+    --ink:#eeece6;
+    --ink-soft:#b7bcbe;
+    --ink-faint:#797f82;
+    --rule:#33373a;
+    --rule-strong:#484d50;
+    --accent:#e0954f;
+    --accent-soft:#4a3120;
+    --accent2:#6fbfc4;
+    --accent2-soft:#1c3638;
+    --code-bg:#0d0f11;
+    --code-ink:#e7e6e0;
+    --code-accent:#e0954f;
+    --code-accent2:#6fbfc4;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#15171a;
+  --paper-raised:#1c1f22;
+  --ink:#eeece6;
+  --ink-soft:#b7bcbe;
+  --ink-faint:#797f82;
+  --rule:#33373a;
+  --rule-strong:#484d50;
+  --accent:#e0954f;
+  --accent-soft:#4a3120;
+  --accent2:#6fbfc4;
+  --accent2-soft:#1c3638;
+  --code-bg:#0d0f11;
+  --code-ink:#e7e6e0;
+  --code-accent:#e0954f;
+  --code-accent2:#6fbfc4;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Sans",sans-serif;
+  font-size:15.5px;
+  line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+
+.page{
+  max-width:760px;
+  margin:0 auto;
+  padding:64px 40px 90px;
+}
+
+.cover{
+  max-width:760px;
+  margin:0 auto;
+  padding:76px 40px 60px;
+  border-bottom:1px solid var(--rule);
+}
+.cover-kicker{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;
+  letter-spacing:.18em;
+  color:var(--accent);
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:22px;
+}
+.cover-kicker::before{
+  content:"";
+  width:26px;height:1px;
+  background:var(--accent);
+  display:inline-block;
+}
+.cover h1{
+  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-weight:800;
+  font-size:clamp(32px,5.6vw,48px);
+  line-height:1.4;
+  margin:0 0 20px;
+  text-wrap:balance;
+  letter-spacing:.01em;
+}
+.cover h1 em{
+  font-style:normal;
+  color:var(--accent);
+}
+.cover .sub{
+  font-size:15.5px;
+  color:var(--ink-soft);
+  max-width:56ch;
+  margin:0 0 34px;
+  text-wrap:balance;
+}
+.cover-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:28px 40px;
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+  border-top:1px solid var(--rule);
+  padding-top:22px;
+}
+.cover-meta div span{
+  display:block;
+  color:var(--ink-faint);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.cover-meta div b{
+  color:var(--ink);
+  font-weight:700;
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:13.5px;
+}
+
+.pipeline{
+  max-width:760px;
+  margin:0 auto;
+  padding:26px 40px 30px;
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  overflow-x:auto;
+  border-bottom:1px solid var(--rule);
+  background:var(--paper-raised);
+}
+.pl-step{
+  flex:1 0 auto;
+  min-width:104px;
+  padding:6px 14px;
+  position:relative;
+  font-family:"JetBrains Mono",monospace;
+}
+.pl-step .n{
+  font-size:10px;
+  color:var(--accent);
+  letter-spacing:.08em;
+}
+.pl-step .t{
+  font-size:12.5px;
+  color:var(--ink);
+  font-weight:700;
+  margin-top:3px;
+  line-height:1.4;
+}
+.pl-step:not(:last-child)::after{
+  content:"→";
+  position:absolute;
+  right:-2px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--ink-faint);
+  font-size:13px;
+}
+
+.chapter{
+  border-top:1px solid var(--rule-strong);
+  padding-top:46px;
+  margin-top:10px;
+}
+.chapter:first-of-type{border-top:none;}
+.chapter-head{
+  display:flex;
+  align-items:baseline;
+  gap:16px;
+  margin-bottom:8px;
+}
+.chapter-num{
+  font-family:"JetBrains Mono",monospace;
+  font-size:13px;
+  color:var(--accent2);
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+.chapter-stage{
+  font-family:"JetBrains Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.chapter h2{
+  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-weight:700;
+  font-size:26px;
+  margin:6px 0 30px;
+  text-wrap:balance;
+}
+.lede{
+  font-size:15.5px;
+  color:var(--ink-soft);
+  border-left:3px solid var(--accent);
+  padding-left:18px;
+  margin:0 0 34px;
+  text-wrap:balance;
+}
+
+.chapter h3{
+  font-family:"Shippori Mincho","Noto Serif JP",serif;
+  font-size:18.5px;
+  font-weight:700;
+  margin:38px 0 14px;
+}
+.chapter p{margin:0 0 20px;}
+
+.spec{
+  background:var(--paper-raised);
+  border:1px solid var(--rule);
+  border-left:3px solid var(--accent2);
+  border-radius:2px;
+  padding:20px 22px 6px;
+  margin:28px 0;
+  page-break-inside:avoid;
+  break-inside:avoid;
+}
+.spec-title{
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12.5px;
+  font-weight:700;
+  letter-spacing:.04em;
+  color:var(--accent2);
+  margin-bottom:10px;
+}
+
+.code-wrap{
+  margin:24px 0;
+  page-break-inside:avoid;
+  break-inside:avoid;
+}
+.code-label{
+  font-family:"JetBrains Mono",monospace;
+  font-size:10.5px;
+  color:var(--ink-faint);
+  margin-bottom:6px;
+  letter-spacing:.05em;
+}
+pre{
+  background:var(--code-bg);
+  color:var(--code-ink);
+  padding:18px 20px;
+  border-radius:3px;
+  overflow-x:auto;
+  font-family:"JetBrains Mono",monospace;
+  font-size:12.5px;
+  line-height:1.7;
+  margin:0;
+}
+pre .k{color:var(--code-accent2);}
+pre .c{color:var(--code-accent);}
+code{
+  font-family:"JetBrains Mono",monospace;
+  background:var(--paper-raised);
+  padding:1px 5px;
+  border-radius:2px;
+  font-size:.9em;
+  border:1px solid var(--rule);
+}
+
+.diagram{
+  margin:30px 0;
+  border:1px solid var(--rule);
+  background:var(--paper-raised);
+  padding:22px;
+  page-break-inside:avoid;
+}
+.diagram-title{
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink-faint);
+  margin-bottom:14px;
+}
+.dg-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+.dg-box{
+  font-family:"JetBrains Mono",monospace;
+  font-size:12px;
+  border:1px solid var(--rule-strong);
+  background:var(--paper);
+  padding:10px 13px;
+  border-radius:2px;
+  text-align:center;
+  line-height:1.5;
+}
+.dg-box b{display:block;font-size:12.5px;color:var(--ink);font-family:"Noto Sans JP",sans-serif;}
+.dg-box small{color:var(--ink-faint);font-size:10px;}
+.dg-box.hot{border-color:var(--accent);}
+.dg-box.hot b{color:var(--accent);}
+.dg-box.gpu{border-color:var(--accent2);}
+.dg-box.gpu b{color:var(--accent2);}
+.dg-arrow{
+  color:var(--ink-faint);
+  padding:0 8px;
+  font-size:14px;
+}
+
+table.data{
+  width:100%;
+  border-collapse:collapse;
+  margin:24px 0;
+  font-size:13.5px;
+}
+table.data caption{
+  text-align:left;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink-soft);
+  margin-bottom:10px;
+  caption-side:top;
+}
+table.data th{
+  text-align:left;
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink-soft);
+  border-bottom:1px solid var(--rule-strong);
+  padding:8px 14px 8px 0;
+}
+table.data td{
+  border-bottom:1px solid var(--rule);
+  padding:10px 14px 10px 0;
+  vertical-align:top;
+}
+table.data td.num{font-family:"JetBrains Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
+table.data td.label{font-weight:700;white-space:nowrap;}
+
+sup.fnref{
+  font-family:"JetBrains Mono",monospace;
+  font-size:10px;
+  color:var(--accent2);
+  margin-left:1px;
+}
+sup.fnref a{color:inherit;text-decoration:none;}
+.footnotes{
+  margin-top:34px;
+  padding-top:16px;
+  border-top:1px solid var(--rule);
+}
+.footnotes ol{
+  margin:0;
+  padding-left:1.3em;
+  font-size:12.5px;
+  color:var(--ink-soft);
+  line-height:1.7;
+}
+.footnotes li{margin-bottom:8px;}
+.footnotes li:target,.footnotes li:target::marker{color:var(--accent);}
+
+.signature{
+  margin-top:56px;
+  padding-top:22px;
+  border-top:1px solid var(--rule);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  font-size:13px;
+  color:var(--ink-faint);
+  font-family:"JetBrains Mono",monospace;
+}
+
+.pagefoot{
+  max-width:760px;
+  margin:0 auto;
+  padding:30px 40px 60px;
+  color:var(--ink-faint);
+  font-family:"JetBrains Mono",monospace;
+  font-size:11px;
+  text-align:center;
+  letter-spacing:.05em;
+}
+
+@media print{
+  body{background:#fff;color:#111;font-size:11pt;}
+  .page,.cover,.pipeline,.pagefoot{max-width:none;padding-left:0;padding-right:0;}
+  @page{size:A4;margin:24mm 18mm;}
+  .chapter{page-break-before:always;border-top:none;padding-top:0;}
+  .chapter:first-of-type{page-break-before:avoid;}
+  pre{background:#f0efe9;color:#111;border:1px solid #ccc;}
+  pre .k,pre .c{color:#111;font-weight:700;}
+  .spec{background:#fff;}
+  a{color:inherit;text-decoration:underline;}
+}
+
+@media (max-width:600px){
+  .page,.cover,.pipeline,.pagefoot{padding-left:20px;padding-right:20px;}
+}
+</style>
+
+<article>
+
+<section class="cover">
+  <div class="cover-kicker">Technical Report — MetaPuppet</div>
+  <h1>自分自身を、<em>自分自身で</em><br>操作する。</h1>
+  <p class="sub">ステレオカメラで自分を撮影し、その映像から人物だけを切り出し、VR内のもう一人の自分に着せて動かす。撮影から描画までの全経路を、3〜4日で実装した記録。</p>
+  <div class="cover-meta">
+    <div><span>Author</span><b>清水（ソフトウェア実装担当）</b></div>
+    <div><span>Project</span><b>MetaPuppet</b></div>
+    <div><span>Scope</span><b>撮影・伝送・推論・描画の全実装</b></div>
+    <div><span>Build</span><b>3〜4日（Unity側デザイン含む）</b></div>
+  </div>
+</section>
+
+<div class="pipeline">
+  <div class="pl-step"><div class="n">01</div><div class="t">ステレオカメラ<br>撮影</div></div>
+  <div class="pl-step"><div class="n">02</div><div class="t">RP上でH.264<br>エンコード</div></div>
+  <div class="pl-step"><div class="n">03</div><div class="t">独自UDPで<br>PCへ伝送</div></div>
+  <div class="pl-step"><div class="n">04</div><div class="t">PC GPUで<br>人物マスキング</div></div>
+  <div class="pl-step"><div class="n">05</div><div class="t">姿勢推定＋<br>手指トラッキング合成</div></div>
+  <div class="pl-step"><div class="n">06</div><div class="t">VRへ<br>ステレオ描画</div></div>
+</div>
+
+<div class="page">
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Prologue</span>
+    <span class="chapter-stage">Overview</span>
+  </div>
+  <h2>まえがき</h2>
+  <p class="lede">自分自身を自分自身で操作するという体験を、JJ君から相談されて実装した。</p>
+
+  <p>相談された時点で決まっていたのは、体験のコンセプトだけだった。目の前のカメラが自分を撮り、その映像から自分の輪郭だけが切り出され、VR内のもう一人の自分がそれをまとって動く。ソフトウェア側の実装は自分が担当し、Unity側のデザインまで含めて3〜4日で完成させた。短期間で形にできたのは、実装の反復にAIを使うvibe codingが効いたためで、逆にAIに頼らず自分で詰め切る必要があったのは、実機と実データを見ながらでないと判断がつかない部分、特にレイテンシに関わる設計判断だった。この「実機を見ないと分からない部分」だけが、恐ろしく人手を食う。プロトタイプの見た目自体は数時間でできてしまうのに、その数時間ぶんの体験を破綻なく成立させるための下ごしらえに、残りの3日以上が消えていく。この記録は、その下ごしらえの中身をなるべくそのまま書き起こしたものである。</p>
+
+  <p>このパイプラインは、大きく分けて4つの実装からできている。ステレオカメラ本体とRaspberry Pi上でのH.264エンコード、PCへの独自UDP伝送、PC上でのRVM(Robust Video Matting)による人物マスキングと姿勢推定、そしてQuestの手指トラッキングとの合成を経てVRへステレオ描画するところまで。このどれか一つが欠けても体験は成立しない。以下では実装した順に、各段で何が問題になり、どう対処したかを章ごとに記録する。</p>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 01</span>
+    <span class="chapter-stage">Latency Budget</span>
+  </div>
+  <h2>各区間でのレイテンシの問題と対策</h2>
+  <p class="lede">自分の動きとアバターの動きにズレがあると、体験は「操作している感覚」ではなく「映像を見ている感覚」に変わる<sup class="fnref" id="fnref-ownership"><a href="#fn-ownership">[1]</a></sup>。区間ごとに問題の種類が違うので、対策も区間ごとに別々に打つ必要がある。</p>
+
+  <p>パイプラインは、カメラでの撮影からVRへの描画まで、性質の異なる4つの区間を通る。カメラからの伝送経路、ネットワークの伝送経路、PC側でのGPU推論の経路、そして描画までの経路。それぞれの区間で起きる遅延の原因は別物で、対策も別々に実装している。以下にまとめる。</p>
+
+  <table class="data">
+    <caption>区間ごとの問題と実装上の対策</caption>
+    <tr><th>区間</th><th>起きる問題</th><th>実装した対策</th></tr>
+    <tr>
+      <td class="label">カメラ→エンコード</td>
+      <td>2台のカメラのフレームがずれる。エンコードそのものに時間がかかる。背景まで律儀に高画質で圧縮すると転送量が膨らむ。</td>
+      <td>センサーのタイムスタンプで左右のフレームを突き合わせる。エンコーダはBフレームや先読みを切って速度優先の設定にし、人物領域の重要度マップをもとにマクロブロックごとに量子化の強さを変える仕組みも組んである（第2章。ただし本番機での稼働状況は未確認）。</td>
+    </tr>
+    <tr>
+      <td class="label">エンコード→ネットワーク</td>
+      <td>UDPなのでパケットが届かない、順序が入れ替わることがある。</td>
+      <td>1フレーム分の欠損は1個までXORパリティで復元し、それ以上は復元せずに次のフレームへ進む（第3章）。</td>
+    </tr>
+    <tr>
+      <td class="label">ネットワーク→GPU推論</td>
+      <td>受信が遅れているフレームを律儀に処理すると、処理している間にもっと新しいフレームが届いてしまう。</td>
+      <td>受信側は常に一番新しいフレーム番号のものだけを組み立て、古いものは破棄する（第3章）。推論もGPU上に常駐させ、CPUとの往復を発生させない（第5章）。</td>
+    </tr>
+    <tr>
+      <td class="label">GPU→描画</td>
+      <td>ステレオなので毎フレーム2枚のテクスチャを転送すると帯域とアップロード回数が倍になる。</td>
+      <td>左右を1枚のテクスチャにまとめて送り、描画時にシングルパス・インスタンシングで1回のアップロードから両目分を読む（第6章）。</td>
+    </tr>
+    <tr>
+      <td class="label">インタラクション全体</td>
+      <td>PC側の推定結果（マスクや姿勢）が壊れる、または遅れて届くことがある。</td>
+      <td>Questの手指トラッキングをゲームプレイ上の正としておき、マスクや姿勢の推定が失敗・遅延しても操作自体は止まらないようにする（第5章）。受信側から送信側へ10Hzでフィードバックを返し、送信ペーシングを調整する（第3章）。</td>
+    </tr>
+  </table>
+
+  <p>以降の章では、この表の各行を実装レベルで説明する。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-ownership">自分の体ではないものを自分の体だと感じてしまう現象は、ラバーハンド錯覚（<a href="https://en.wikipedia.org/wiki/Rubber_hand_illusion">Rubber Hand Illusion</a>）として知られ、視覚と運動感覚が高い精度で同期しているほど、その錯覚（身体所有感）が強く働くことが知られている。VRで他人の体に憑依する研究も、この延長線上にある。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 02</span>
+    <span class="chapter-stage">Stereo Capture / Encode</span>
+  </div>
+  <h2>ステレオカメラとRaspberry Piくん上のエンコード</h2>
+  <p class="lede">映像の圧縮には、Raspberry Piくんのハードウェアエンコーダではなく、ソフトウェアのx264を使っている。</p>
+
+  <p>そもそもステレオカメラ自体、既製品を買ってきたわけではない。Raspberry Pi 5にRaspberry Pi用のカメラモジュールを2台取り付けて組み立てている。組み立てにあたっては、Raspberry Pi 5とカメラモジュールでステレオビジョンを構成した産業向けの事例（<a href="https://techietechnology.co.jp/2025/06/10/3d-stereo-vision-system-3d-industrial-raspberry-pi-5/">techietechnology.co.jp, 2025</a>）を参考にした。専用のグローバルシャッターカメラや外部同期のハードウェアを使わなくても、Raspberry Pi 5であれば安価なカメラモジュール2台の映像を実用的な遅延で処理できる、という設計方針をそのまま踏襲している。</p>
+
+  <p>Raspberry Piくんにはハードウェアの映像エンコーダが載っているが、今回は<a href="https://www.videolan.org/developers/x264.html">libx264</a>によるソフトウェアエンコードを使っている。理由は、この体験では人物が写っている領域とそうでない領域とで圧縮の力配分を変えたい、つまりマクロブロックごとに量子化の強さを個別に指定したいのに、Raspberry Piくんのハードウェアエンコーダはあらかじめ用意されたレート制御モード（CBR/VBRなど）を選ぶだけのインターフェースしか持たず、フレーム内の特定の領域だけ量子化を変えるような細かい指定を外から差し込む余地がないからである。x264はソフトウェア実装なので、フレームごと・マクロブロックごとに量子化オフセットを自分で計算してAPI経由で渡せる。プリセットをultrafast・zerolatencyにし、Bフレームと先読みとCABACを切って、圧縮効率よりレイテンシを優先する設定も同時に組んでいる。</p>
+
+  <p>左右の映像は、1枚の画像の左半分と右半分にそれぞれの目を並べるSide-by-Side（SBS）方式<sup class="fnref" id="fnref-interleave"><a href="#fn-interleave">[1]</a></sup>でまとめている。SBSにした理由は主に描画側にある。後段のVR表示シェーダーが1枚のテクスチャのアップロードだけで両目分をまかなえるため、伝送量とテクスチャ転送回数を抑えられる（詳細は第6章）。</p>
+
+  <p>もう一つ、実装として組み込んでいるのが、Raspberry Piくん上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM（Robust Video Matting）</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Piくん上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
+
+  <div class="spec">
+    <div class="spec-title">エンコーダの実装値</div>
+    <table class="data">
+      <tr><th>項目</th><th>値</th></tr>
+      <tr><td>コーデック</td><td class="num">H.264（libx264, software）</td></tr>
+      <tr><td>プリセット</td><td class="num">ultrafast / zerolatency</td></tr>
+      <tr><td>プロファイル</td><td class="num">constrained-baseline, Bフレームなし</td></tr>
+      <tr><td>フレームパッキング</td><td class="num">Side-by-Side</td></tr>
+      <tr><td>映像ストリーム</td><td class="num">1280×360 @ 30fps</td></tr>
+      <tr><td>マスクストリーム（別ポート）</td><td class="num">320×90, R8</td></tr>
+      <tr><td>エンコード時間（片目あたり）</td><td class="num">7.4〜7.6 ms</td></tr>
+      <tr><td>Pi上のRVM推論時間</td><td class="num">約18 ms/frame（30fpsの持ち時間の半分強）</td></tr>
+    </table>
+  </div>
+
+  <p>重要度マップはフレームごとに作り直すのではなく、指数移動平均（EMA）で更新している。人物が一瞬フレームの外に出ても、量子化オフセットの値が1フレームで急変しないようにするための処理である。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-interleave">左右の映像を1枚にまとめる方式には、SBSのほかに、走査線を1本ずつ左目・右目と交互に並べるインターリーブ方式もある。今回はSBSを採用しているため、本文では詳しく扱わない。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 03</span>
+    <span class="chapter-stage">Custom UDP Transport</span>
+  </div>
+  <h2>独自のUDP伝送プロトコル</h2>
+  <p class="lede">受信側は、フレーム番号が進んでいるものだけを常に採用する。</p>
+
+  <p>PCへの映像伝送にTCPを使わなかったのは、TCPが「ロスしたパケットを再送してでも順序通りに完全な形で届ける」ことを保証する仕組みだからである。この保証は、動いている自分の体をリアルタイムに映すという用途には合わない。少し前の完全な映像が届くより、今この瞬間の、多少欠けていてもいいから一番新しい映像が届くことの方が重要になる。そのため独自のUDPベースのフレーミングプロトコルを実装し、受信側は常に一番進んでいるフレーム番号のものだけを組み立てる設計にしている。</p>
+
+  <p>Ethernet上のパケットは、<a href="https://en.wikipedia.org/wiki/IP_fragmentation">IPフラグメンテーション</a>を避けるため1500バイトのMTUに収まるようチャンクに分割している。受信側はフレーム番号が後退しているパケットを破棄し、Raspberry Piくんの再起動などでフレーム番号が0に戻るような場合に備えて、連続して番号が後退したパケットが一定数（15回）続いたら基準をリセットするガードも入れている。</p>
+
+  <div class="code-wrap">
+    <div class="code-label">MetaPuppetPacket.cs のパケットヘッダ（56バイト、MTU 1500に収まるようチャンク化）</div>
+    <pre>struct <span class="k">MetaPuppetPacketHeader</span> {
+  uint32  Magic;              <span class="c">// 'MPQ1'</span>
+  ushort  Version;            <span class="c">// = 1</span>
+  Flags   Flags;              <span class="c">// Keyframe / FecPresent / MaskPresent など</span>
+  uint32  StreamId;
+  uint64  PacketSequence;
+  uint64  FrameSequence;      <span class="c">// 受信側はこの値の前進だけを見る</span>
+  uint64  CaptureTimestampNs; <span class="c">// レイテンシ計測の起点</span>
+  uint32  ChunkIndex, ChunkCount;
+  uint32  PayloadSize, FrameSize;
+};</pre>
+  </div>
+
+  <p>誤り訂正には、複数個の欠損を復元できるReed-Solomon系<sup class="fnref" id="fnref-rs"><a href="#fn-rs">[1]</a></sup>ではなく、1フレームにつきXORパリティを1個だけ追加する方式を使っている。理論上は2個以上のチャンクが欠けると復元できないが、パリティの計算がXOR一回で済み、実装も単純になる。1フレームの寿命がミリ秒単位のこの用途では、複数欠損に対応する複雑な誤り訂正の計算に時間をかけるより、次のフレームをそのまま受け取った方が結果的に速いと判断した。誤り訂正の手厚さ（FECのグループサイズ）も、第2章の重要度マップを再利用してタイルごとに変えている。</p>
+
+  <p>受信側は、直近何秒かでどれだけパケットが届いていて、どれだけ欠けていたかを10Hzで数え、その結果を送信側に送り返している。送信側はこれを見て、回線が詰まっていそうなら送出のペースを落とし、余裕がありそうなら戻す、という調整をしている。もう一つ、キーフレーム（それ単体で映像を復元できる特別なフレーム。詳しくは後述）が全部届く前に、次の新しいフレームに追い越されてしまった場合には、受信側から送信側へ1回だけ再送要求のパケットを送る仕組みも入れている。この再送要求パケットには、実装上KEYFRAME_NACKという名前をつけている<sup class="fnref" id="fnref-nack"><a href="#fn-nack">[2]</a></sup>。</p>
+
+  <div class="spec">
+    <div class="spec-title">伝送プロトコルの実装値</div>
+    <table class="data">
+      <tr><th>項目</th><th>値</th></tr>
+      <tr><td>トランスポート</td><td class="num">UDP（独自フレーミング）</td></tr>
+      <tr><td>1パケットあたりのペイロード上限</td><td class="num">1444 bytes</td></tr>
+      <tr><td>誤り訂正</td><td class="num">単一欠損XORパリティ</td></tr>
+      <tr><td>フレーム再構成方針</td><td class="num">最新フレーム番号のみ採用</td></tr>
+      <tr><td>再同期ガード</td><td class="num">15回連続の逆行で基準をリセット</td></tr>
+      <tr><td>キーフレーム再送</td><td class="num">KEYFRAME_NACKで1回だけ要求</td></tr>
+      <tr><td>フィードバック頻度</td><td class="num">10 Hz</td></tr>
+    </table>
+  </div>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-rs"><a href="https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction">誤り訂正符号</a>の一種。元のデータに、多項式の計算で作った「余分なデータ」を追加しておくことで、一部が欠けても残りから元のデータを復元できるようにする方式。QRコードやCD・DVDの傷対策にも使われている。追加するデータの量を増やすほど、より多くの欠損に耐えられる。今回は「欠損は1個までしか復元しない」と割り切ることで、この多項式計算をXOR（対応するビットを比較し、異なっていれば1にする単純な演算）1回に簡略化している。</li>
+      <li id="fn-nack">NACK（Negative ACKnowledgement）は「受け取れなかった」ことを相手に伝えるパケットの一般名で、ネットワークの分野では広く使われる用語である。KEYFRAME_NACKという名前自体はMetaPuppet独自のパケット種別名で、他のシステムと共通の規格ではない。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 04</span>
+    <span class="chapter-stage">GPU Segmentation Backend</span>
+  </div>
+  <h2>TensorRTに置き換えて高速化をする</h2>
+  <p class="lede">PC側の人物マスキングに使っているRVMの推論バックエンドが、GPU世代の変更だけで壊れた。cuDNN経由のCUDA EPを捨て、<a href="https://qiita.com/Hiroaki-K4/items/e8dc965c7640c67fdf02">TensorRT</a>へ乗り換えて動かし直すまでの経緯を記録する。</p>
+
+  <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVM（Robust Video Matting）というモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
+
+  <p>RVMのrefiner部分にあるdepthwise convolution（Conv_301など4ノード、weightはrefiner.box_filter.weight、shape[4,1,3,3]）が、cuDNN Frontend<sup class="fnref" id="fnref-cudnnfe"><a href="#fn-cudnnfe">[2]</a></sup>の内部で失敗するようになった。エラーメッセージは短く、原因の手がかりはほとんど含まれていない。この手の一行エラーというのは、読んだ瞬間は情報が書いてあるように見えて、実際には「失敗しました」以上のことを何も教えてくれない、という性質を持っている。仕方がないので、乏しい状況証拠だけを頼りに推理を組み立てることになる。最初に立てた仮説は、「depthwiseはgroup convという特殊な形態だから、新しいGPU世代向けのカーネルがまだ用意されていないのだろう」というものだった。今にして思えば早計な仮説だった。</p>
+
+  <p>この仮説に基づき、patch_rvm_blackwell.pyというツールを書いた。4つのdepthwise Convノードを、cuDNNを経由しないPad→Slice→Mul→Addの羅列に手作業で分解し直すものである。3x3のdepthwise convolutionを、パディング済みの入力から9通りのタップ位置ごとにスライスを切り出し、対応する重みを掛けて9個ぶん足し合わせるという、direct convolutionの定義そのままに書き下しただけの回りくどいやり方だが、数式は1項ずつ手で検算した。結果、fp32では全出力が完全に一致し、fp16でもphaおよびr1〜r4が完全一致した。</p>
+
+  <p>これで解決したと、しばらくの間は考えていた。</p>
+
+  <h3>問題の範囲を見誤っていた</h3>
+  <p>パッチを当てて改めてテストすると、今度はdepthwiseでもなんでもない、通常のgroup=1の標準Conv（Conv_8）が同じ症状で失敗した。エラーはCUDNN_FE failure 7: GRAPH_EXECUTION_FAILED。cuDNN 9.xは個々の畳み込みを直接叩くのではなく、演算の組み合わせをグラフとして宣言してから、その実行プラン（どのカーネル・どのタイル分割・どのアルゴリズムで動かすか）をcuDNN Frontend自身に選ばせる設計になっている。今回の失敗は、この実行プラン選択のフェーズそのものが、この世代のGPU向けにまだ十分整備されていないことを示していた。</p>
+
+  <p>depthwiseが特別だったのではなく、cuDNN Frontendの実行プラン選択そのものが、もっと広い範囲で不安定だった。ノード単位で個別に迂回するやり方は、当たった箇所には確実に効くが、当たっていない箇所には何の効果もない。CUDA 12.8とcuDNN 9.8の組み合わせにアップグレードした結果、YOLOv3・YOLOv4・MobileNet V1が同じ症状で失敗するという報告も他所に見つかった。少なくとも環境固有の現象ではないことは分かった。</p>
+
+  <div class="diagram">
+    <div class="diagram-title">推論バックエンドが壊れ直した経路</div>
+    <div class="dg-row">
+      <div class="dg-box hot"><b>CUDA EP + cuDNN</b><small>実行プラン選択が不安定<br>GRAPH_EXECUTION_FAILED</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box gpu"><b>TensorRT-RTX EP</b><small>動的Resizeを解析できず<br>Assertion失敗</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box gpu"><b>静的形状に特殊化</b><small>ISliceLayer out of bounds<br>Expand内部のバグ</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box"><b>TensorRT 11.2.1<br>を直接呼び出し</b><small>INT32 shape tensor化で解決</small></div>
+    </div>
+  </div>
+
+  <h3>TensorRT-RTXへの乗り換えと、そこでの新しい失敗</h3>
+  <p>方針を転換し、cuDNN経由のCUDA EPを避け、NVIDIAがクライアントRTX向けに提供しているTensorRT-RTX EPを使うことにした。GPU常駐テンソルの受け渡しに使っていたOrt::MemoryInfo("Cuda", ...)というハードコードを、実行プロバイダに依存しない共通の仕組み（g_seg.gpu_memory_info）に書き直し、AUTO→TensorRT-RTX→CUDA→CPUという段階的なフォールバックも用意した。</p>
+
+  <p>TensorRT-RTXに切り替えると、cuDNN由来のConvの失敗は解消した。しかし今度は、RVM内部のResizeノード（バックボーンとrefinerの間で解像度を橋渡しするために、実行時入力であるdownsample_ratioに依存して動的にサイズを決めているもの）を、TensorRT-RTXのパーサーが解析できず、Assertion !isInFlight(p.second.symbolicRep) failedという別のエラーで失敗するようになった。TensorRT系のパーサーは実行時に値が決まるResizeのサイズを扱いにくく、scales/sizes入力がグラフレベルの定数（initializer）でなければ解析できないという制約に、今回もそのまま引っかかった。</p>
+
+  <p>これには比較的すぐに糸口が見つかった。MetaPuppetは実際にはセッションごとに固定の解像度でしか推論しないため、downsample_ratioを実行時入力として渡す必要はそもそもなかった。specialize_rvm_trtrtx.pyを書き、この値をモデル内の定数として焼き込み、内部のResizeを完全な静的形状に置き換えた。</p>
+
+  <p>Resizeの問題は解消したが、今度はExpand_204（RVMの再帰状態r1〜r4をブロードキャストする部分）で、ISliceLayer has out of bounds accessという、モデル側の改造では対処できない、TensorRT-RTX v0.4.0自体の内部の不具合に行き当たった。TensorRTのExpandは内部的にSliceレイヤーへ変換されることがあり、そこでの範囲外アクセスは、パーサーというよりビルダー側の不具合と見るのが妥当である。個別の失敗箇所をその都度モデル側で回避し続けるやり方には限界があることが見えてきた。</p>
+
+  <h3>CPUフォールバックの確認と、最終的な実装</h3>
+  <p>並行して調べていたGPU常駐CUDAパスは、例外すら発生させずに黙って失敗するという、輪をかけて診断のしづらい症状を見せていた。専用の診断API（mppc_segmentation_copy_last_error）を用意しても、Ort::Exception<sup class="fnref" id="fnref-ortexc"><a href="#fn-ortexc">[3]</a></sup>（ONNX Runtimeが内部で投げるエラーの型）以外の何かによって失敗しているらしく、原因はまだ特定できていない。ここで一度、CPU推論への安全なフォールバックが確実に機能するかをUnity上で確認した。結果は「推論に成功したフレームが14、失敗して飛ばしたフレームが0、最終ステータスは正常」を意味するログ（<code>FramesInferred=14, FramesSkipped=0, LastStatus=OK</code>）で、画面上の人物クロッピングも正しく表示された。</p>
+
+  <p>現在の実装は、TensorRT-RTXではなく、通常のTensorRT SDK<sup class="fnref" id="fnref-trtrtxdiff"><a href="#fn-trtrtxdiff">[4]</a></sup>（11.2.1系）のAPIを直接呼び出す経路を使っている。ONNXを完全な静的形状（batch=2、640×360または512×288の固定解像度、再帰状態r1〜r4のチャンネル数・空間サイズもすべて数値で固定）に特殊化し、onnx.checkerとshape inferenceを通し、CPU上で元モデルと特殊化モデルの出力（phaだけでなくr1〜r4も含めて）を突き合わせ、Unityを経由しないスタンドアロンの実行ファイルでエンジンのビルドを確認してから、D3D11/CUDAの相互運用コードに進む、という順序で検証している。</p>
+
+  <p>この過程でNVIDIAの開発者フォーラムを検索していたところ、Jetsonくんで同じRVMモデルをパースしようとして、まったく同じところでつまずいている同志の投稿を見つけた。世界のどこかに、同じ深夜に同じエラーメッセージと向き合っている人がいるというのは、地味に励みになる。その報告によれば、downsample_ratioの固定化だけでは不十分で、shapeに関わるテンソル<sup class="fnref" id="fnref-shapetensor"><a href="#fn-shapetensor">[5]</a></sup>をINT64からINT32へ明示的にキャストしなければ、TensorRTのパーサーが"network input that is shape tensor must have type Int32"というエラーで落ちるとのことだった。この情報をもとに、specialize_rvm_tensorrt.pyにINT32化の処理を追加し、実装を完了している。</p>
+
+  <div class="spec">
+    <div class="spec-title">推論バックエンドの最終構成</div>
+    <table class="data">
+      <tr><th>項目</th><th>値</th></tr>
+      <tr><td>GPUバックエンド</td><td class="num">TensorRT 11.2.1 直接呼び出し</td></tr>
+      <tr><td>モデル形状</td><td class="num">batch=2, 640×360 / 512×288 固定</td></tr>
+      <tr><td>shape tensorの型</td><td class="num">INT64からINT32へキャスト</td></tr>
+      <tr><td>フォールバック順</td><td class="num">AUTO → TensorRT-RTX → CUDA → CPU</td></tr>
+      <tr><td>検証方法</td><td class="num">onnx.checker + shape inference<br>元モデルとの出力突合（pha, r1〜r4）</td></tr>
+      <tr><td>Raspberry Piくん上のCPUフォールバック</td><td class="num">約18ms/frame、30fps以内に収まる</td></tr>
+    </table>
+  </div>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-onnx"><a href="https://onnx.ai/">ONNX</a>は、PyTorchやTensorFlowなど別々の学習フレームワークで作ったモデルを、共通の1つのファイル形式に変換して保存するための規格。ONNXに変換しておけば、学習に使ったフレームワークに縛られず、ONNX Runtimeのような別の推論エンジンで実行できる。</li>
+      <li id="fn-cudnnfe">cuDNN Frontendは、NVIDIAが提供するcuDNN（GPU向けのディープラーニング演算ライブラリ）のC++/Python API層。個々の演算を都度呼び出す旧来のAPIとは異なり、演算をグラフとして宣言し、実行時にそのグラフに合う最適なカーネル（実行プラン）をライブラリ側に選ばせる設計になっている（<a href="https://docs.nvidia.com/deeplearning/cudnn/frontend/latest/">NVIDIA cuDNN Frontend documentation</a>）。</li>
+      <li id="fn-ortexc">ONNX Runtimeが内部でエラーを検知したときに投げるC++の例外クラス。通常はこれを捕まえればエラーの内容を文字列として取得できるが、今回のCUDAパスの失敗はこの例外を経由せずに（クラッシュでもなく、正常終了の顔をして）静かに失敗していたため、原因の切り分けが難航した。</li>
+      <li id="fn-trtrtxdiff">TensorRTには、データセンター向けGPUも含めて幅広い環境を対象にした従来からのTensorRT SDKと、GeForce RTXなどクライアント向けGPUに絞って軽量に配布できるようにしたTensorRT-RTXという、系統の異なる2つの実装がある。TensorRT-RTXはアプリに同梱しやすい代わりに新しく、パーサーの対応範囲がまだ狭い。今回はTensorRT-RTX側のパーサーの不具合を避けるため、対応範囲の広い従来のTensorRT SDKを直接使う経路に落ち着いた。</li>
+      <li id="fn-shapetensor">TensorRTでは、テンソルの中身が画素値のような「データ」ではなく、別のテンソルの形状（サイズ）そのものを表す場合があり、これをshape tensorと呼ぶ。ONNXの標準的な整数型はINT64だが、TensorRTのパーサーはshape tensorについてINT32しか受け付けないため、明示的なキャストが必要になる。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 05</span>
+    <span class="chapter-stage">GPU-Resident Pipeline / Pose / Hand Tracking</span>
+  </div>
+  <h2>マスキング、姿勢推定、手指トラッキングの合成</h2>
+  <p class="lede">映像は一度もCPUに戻らない。RVMとRTMPoseは同じGPUメモリの上で処理を続け、最終的な操作の正はQuestの手指トラッキングが持つ。</p>
+
+  <p>体を切り出したあと、そのシルエットをVR内のアバターの動きに変換するには、関節や骨格の位置を推定する必要がある。ここではMediaPipeではなく<a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a>を使っている。理由は、RTMPoseがRVMと同じD3D11<sup class="fnref" id="fnref-d3d11"><a href="#fn-d3d11">[1]</a></sup>/CUDA相互運用の枠組みに乗り、CPUへ映像を戻すことなくGPU上に常駐したまま処理を回せるためである。RTMPoseは、RVMのマスクを常に受け取るわけではなく、目のID（左右）が一致していること、マスクが未来のフレームのものでないこと、許容ラグの範囲内であることを確認したうえで受け取る。この条件を満たさない場合はマスクを使わず、それでも体験自体が止まらないのは、Questのハンド・パームトラッキングが常にゲームプレイ上の正として扱われ、RVMやRTMPoseの結果とは独立して動いているためである。マスクと姿勢推定は、あくまで見た目の合成に使われるレイヤーであり、操作の判定そのものには使っていない。</p>
+
+  <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[5]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[2]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[3]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
+
+  <div class="diagram">
+    <div class="diagram-title">GPU常駐パイプライン（CPUを経由しない経路）</div>
+    <div class="dg-row">
+      <div class="dg-box gpu"><b>D3D11 NV12</b><small>左右デコード映像</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box gpu"><b>Resize / 色変換 / NCHW</b><small>コンピュートシェーダー</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box hot"><b>RVM (batch=2)</b><small>CUDA interop / IoBinding</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box gpu"><b>マスク後処理</b><small>境界ぼかし＋時間EMA</small></div>
+      <div class="dg-arrow">→</div>
+      <div class="dg-box"><b>RTMPose</b><small>条件を満たす時のみマスクを使用</small></div>
+    </div>
+  </div>
+
+  <p>同じ組み合わせ（リングバッファのスロットと再帰状態バンクのアドレスの組）に対してはCUDA Graph<sup class="fnref" id="fnref-cudagraph"><a href="#fn-cudagraph">[4]</a></sup>のキャプチャを試み、成功すればその分の呼び出しオーバーヘッドを削れる。キャプチャが失敗する場合は通常のIoBinding経由の呼び出しに自動でフォールバックする。リングバッファも2スロットに留め、常に最新のフレームが処理対象になるようにしている。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-d3d11">Direct3D 11。Windows上でGPUに描画命令を出すためのAPIの一つ。Unityの描画バックエンドとしても使われており、映像デコーダの出力やRVMの推論結果は、このDirect3D 11が管理するGPU上のメモリ（テクスチャ）としてやり取りされる。CUDAとの相互運用は、このDirect3D 11側のメモリをCUDA側からも直接読み書きできるようにする仕組みを指す。</li>
+      <li id="fn-nchw">画像を並べるバイト順の規約の一つ。N（枚数）→C（色チャンネル数）→H（縦）→W（横）の順に並べる、という意味で、ニューラルネットワークの推論エンジンが入力テンソルとして受け取る標準的な並び方である。これに対し、通常の画像ファイルやシェーダーはH×W×Cの順（HWC、1ピクセルごとにRGBが並ぶ）で扱うことが多く、推論に渡す前にこの並べ替えが必要になる。</li>
+      <li id="fn-iobinding">ONNX Runtimeの機能の一つ。通常は推論のたびに入出力データをCPUとGPUの間でコピーするが、IoBindingを使うとGPU上の特定のメモリアドレスを入出力として固定でき、コピーを省略できる。</li>
+      <li id="fn-nv12-ch5">映像の色を輝度（Y）と色差（UV）に分けて記録する形式の一つ。色差は輝度の半分の解像度に間引かれており、その分データ量が少なくて済むため、映像のデコード・エンコードで標準的に使われる（第6章で改めて触れる）。</li>
+      <li id="fn-cudagraph">推論1回につき、実際にはGPU上のカーネル呼び出しやメモリ操作が何十個も連なって実行されている。<a href="https://developer.nvidia.com/blog/cuda-graphs/">CUDA Graph</a>は、この一連の呼び出しを「ノードとその依存関係」というグラフ構造として一度だけ記録（キャプチャ）しておき、以降はCPU側から1回の呼び出しでそのグラフをまるごと再生できる仕組みである。「グラフ」という名前は、この依存関係の構造そのものを指している。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 06</span>
+    <span class="chapter-stage">VR Display Shader</span>
+  </div>
+  <h2>SBSシェーダーで両目・色変換・合成をまとめて処理する</h2>
+  <p class="lede">1枚のテクスチャで、両目の描画・色空間変換・人物合成の3つを片付ける。</p>
+
+  <p>VRヘッドセットへ表示するシェーダー（MetaPuppetSbsUnlit.shader）にも、伝送量を減らすための工夫を入れている。第2章で触れたSBS（Side-by-Side）パッキングは、Unityの<a href="https://docs.unity3d.com/Manual/SinglePassInstancing.html">シングルパス・インスタンシング</a>（1回の描画コールで両目分を処理する方式）と相性がよい。1枚のテクスチャをGPUに一度アップロードするだけで、左右それぞれの描画時にUV座標のUの半分だけをずらして読むことで両目分をまかなえるため、両目ぶん別々にテクスチャを転送・バインドする必要がなくなる。</p>
+
+  <div class="code-wrap">
+    <div class="code-label">MetaPuppetSbsUnlit.shader　目ごとのUV選択</div>
+    <pre>float2 uv = float2(
+    eyeUv.x * <span class="k">0.5</span> + saturate(eye) * <span class="k">0.5</span>,
+    eyeUv.y
+);
+<span class="c">// eye は unity_StereoEyeIndex（シングルパス・インスタンシング時）</span>
+<span class="c">// または _MetaPuppetEyeIndex（テスト時の明示指定）</span></pre>
+  </div>
+
+  <p>このシェーダーはさらに2つの処理を同じフラグメントパスに詰め込んでいる。1つは、デコード済みのRGBAだけでなく、デコーダが直接出力するYUV NV12<sup class="fnref" id="fnref-nv12"><a href="#fn-nv12">[1]</a></sup>平面（輝度R8プレーンと色差RG8プレーン）をそのまま受け取り、BT.601<sup class="fnref" id="fnref-bt601"><a href="#fn-bt601">[2]</a></sup>の変換式でシェーダー内部でRGB化する経路。これにより、CPU側で色変換をかけるステップを省略できる。もう1つは、RVMの出力アルファを外部マスクテクスチャとして受け取り、クロマキー・マットキーとの切り替えも含めて背景合成をこのパスの中で完結させている点である。両目の描画、色空間変換、人物合成という3つの処理を1つのUnlitフラグメントシェーダーにまとめているのは、描画コール数とテクスチャアップロード回数を最小限に絞るためである。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-nv12">映像の色をRGBではなく輝度（Y）と色差（UV）に分けて記録する形式の一つ。人の目は色の変化より明るさの変化に敏感なため、色差の解像度を輝度の半分に間引いてもほとんど劣化して見えない。この間引き分だけデータ量を減らせるため、映像のデコード・エンコードでは標準的に使われる。</li>
+      <li id="fn-bt601">YとUVの組をRGBに変換するための係数を定めた規格。放送や配信の分野では<a href="https://en.wikipedia.org/wiki/Rec._601">BT.601</a>（標準画質向け）と<a href="https://en.wikipedia.org/wiki/Rec._709">BT.709</a>（ハイビジョン向け）の2種類が広く使われており、係数がわずかに異なる。どちらの規格の係数を使ったかによって色味が変わるため、デコーダ側とシェーダー側で規格を揃える必要がある。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Epilogue</span>
+    <span class="chapter-stage">Summary</span>
+  </div>
+  <h2>あとがき</h2>
+
+  <p>ここまで記録した対策は、単体で見ればどれも小さなチューニングにすぎない。カメラ側の重要度マップを圧縮とFECの優先度づけに使うこと、受信側が常に最新フレームだけを採用すること、GPU常駐パイプラインでCPUとの往復をゼロにすること、SBSパッキングで両目分のテクスチャ転送を1回にまとめること。これらは第1章の表に挙げた4つの区間それぞれに対する、個別の対策として実装している。1つ1つは地味で、単体で自慢できるような技術ではない。ただ、この地味な対策を4区間ぶん積み上げて、なおかつどこか1箇所でも手を抜くと体験全体が「操作している感覚」から「映像を見ている感覚」へ転落するというのが、この手の実装の面倒なところだと思う。</p>
+
+  <p>特に、人物の重要度マップという1つのシグナルを、符号化の量子化と誤り訂正の両方に使う設計について、既存の特許を調べてみたところ、量子化と誤り訂正を組み合わせたもの（例えばNokiaの<a href="https://patents.google.com/patent/US7206456B2">US7206456B2</a>）はあっても、そこにレイテンシ・バジェットに応じた送信ペーシングまで一緒くたに突っ込んだ例は見当たらなかった。特許調査などという柄でもない作業を深夜にやっていたのは、単に「これ、もしかして誰もやっていないのでは」という予感が当たっているかどうかを、自分の手で確かめたかっただけである。この記録が、同じようにGPU世代交代に殴られている誰かの深夜の検索に、たまたま引っかかれば幸いである。</p>
+
+  <div class="signature">
+    <div>MetaPuppet — Software Implementation Notes</div>
+    <div>清水</div>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Credits</span>
+    <span class="chapter-stage">Content &amp; Assets</span>
+  </div>
+  <h2>クレジット</h2>
+  <p class="lede">ここまではソフトウェアの実装記録だったが、体験を構成しているのはコードだけではない。使用した楽曲・モデル・ソフトウェアについて、分かっている範囲で記載する。</p>
+
+  <h3>楽曲</h3>
+  <p>会場で流れる音楽（「Amber Decay」「Tap Here」「Evento」「Serendipity March」の各シーンで使用）は、いずれもKangding Rayの楽曲の一部を使用している。これらの著作権は同アーティストに帰属し、当方が作曲・制作したものではない。本作は学生向けのVRコンテストに向けて制作した非商用のプロトタイプであり、音楽はその中の一要素であって、作品全体ではない。展示や配布の前に、権利者への確認、または収録範囲の見直しを行う予定である。</p>
+
+  <h3>3Dモデル・アセット</h3>
+  <p>キャラクターや背景の一部には、<a href="https://assetstore.unity.com/packages/3d/environments/polygon-prototype-pack-art-by-synty-137126">POLYGON Prototype Pack（Art by Synty）</a>をUnity Asset Store経由で使用している。</p>
+  <p>彫像を模したモデルとしては、サモトラケのニケ、ラオコーン像、アポロン・ベルヴェデーレ、ミケランジェロのダビデ像（頭部）の形状を使用している。いずれも著名な彫刻作品を再現した3Dモデルで、CC0（パブリックドメイン相当）またはCC-BY（表示さえすれば自由に利用可）で公開されているものを利用する想定である。具体的な配布元URLはこの記録の執筆時点では未整理のため、展示・配布前にモデルごとのライセンス表記（CC-BYのものは作者名の表示）を別途まとめる。このほかWoodmanという名称のキャラクターモデルも使用しているが、入手経路の記録が残っておらず、出典を特定できていない。</p>
+
+  <h3>ソフトウェア・ライブラリ</h3>
+  <table class="data">
+    <tr><th>名称</th><th>用途</th></tr>
+    <tr><td><a href="https://github.com/PeterL1n/RobustVideoMatting">RVM (Robust Video Matting)</a></td><td>人物マスキング（第4・5章）</td></tr>
+    <tr><td><a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a></td><td>姿勢推定（第5章）</td></tr>
+    <tr><td><a href="https://onnxruntime.ai/">ONNX Runtime</a></td><td>推論エンジン（MITライセンス, Microsoft）</td></tr>
+    <tr><td><a href="https://www.videolan.org/developers/x264.html">x264</a></td><td>映像エンコード（第2章）</td></tr>
+    <tr><td><a href="https://github.com/CristianQiu/Unity-URP-Volumetric-Light">URP Volumetric Fog/Light</a></td><td>Unity用ボリューメトリックフォグ（CristianQiu氏）</td></tr>
+  </table>
+
+  <p>各ライブラリの正確なライセンス条件は、リンク先のリポジトリを参照してほしい。この記録では要約や解釈を加えず、名称と用途のみを記載している。</p>
+</section>
+
+</div>
+
+<div class="pagefoot">Printed for on-site distribution — MetaPuppet Technical Report</div>
+
+</article>
