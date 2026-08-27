@@ -614,14 +614,16 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVM（Robust Video Matting）というモデルを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
 
-  <p>RVMのrefiner部分にあるdepthwise convolution（Conv_301など4ノード、weightはrefiner.box_filter.weight、shape[4,1,3,3]）が、cuDNN Frontend<sup class="fnref" id="fnref-cudnnfe"><a href="#fn-cudnnfe">[2]</a></sup>の内部で失敗するようになった。エラーメッセージは短く、原因の手がかりはほとんど含まれていない。この手の一行エラーというのは、読んだ瞬間は情報が書いてあるように見えて、実際には「失敗しました」以上のことを何も教えてくれない、という性質を持っている。仕方がないので、乏しい状況証拠だけを頼りに推理を組み立てることになる。最初に立てた仮説は、「depthwiseはgroup convという特殊な形態だから、新しいGPU世代向けのカーネルがまだ用意されていないのだろう」というものだった。今にして思えば早計な仮説だった。</p>
+  <p>RVMのrefiner部分にある、depthwise convolutionという種類の畳み込み層（4か所）が、cuDNN Frontend<sup class="fnref" id="fnref-cudnnfe"><a href="#fn-cudnnfe">[2]</a></sup>の内部で失敗するようになった。エラーメッセージは短く、原因の手がかりはほとんど含まれていない。この手の一行エラーというのは、読んだ瞬間は情報が書いてあるように見えて、実際には「失敗しました」以上のことを何も教えてくれない、という性質を持っている。仕方がないので、乏しい状況証拠だけを頼りに推理を組み立てることになる。最初に立てた仮説は、「depthwiseはgroup convという特殊な形態だから、新しいGPU世代向けのカーネルがまだ用意されていないのだろう」というものだった。今にして思えば早計な仮説だった。</p>
 
-  <p>この仮説に基づき、patch_rvm_blackwell.pyというツールを書いた。4つのdepthwise Convノードを、cuDNNを経由しないPad→Slice→Mul→Addの羅列に手作業で分解し直すものである。3x3のdepthwise convolutionを、パディング済みの入力から9通りのタップ位置ごとにスライスを切り出し、対応する重みを掛けて9個ぶん足し合わせるという、direct convolutionの定義そのままに書き下しただけの回りくどいやり方だが、数式は1項ずつ手で検算した。結果、fp32では全出力が完全に一致し、fp16でもphaおよびr1〜r4が完全一致した。</p>
+  <p>この仮説に基づき、対処法を考えた。GPUライブラリ側の修正を待つ、あるいはこの種類の層自体を使わないようモデルを設計し直す、という選択肢もあったが、それでは次のGPU世代でまた同じ問題に当たる可能性がある。そこで、失敗している4か所のdepthwise convolutionを、cuDNNの実行プラン選択を経由しない、もっと原始的な演算の組み合わせ（パディング→スライス→掛け算→足し算）に手作業で書き換えるという方法を選んだ。3x3のdepthwise convolutionは、パディング済みの入力から9通りのタップ位置ごとにスライスを切り出し、対応する重みを掛けて9個ぶん足し合わせる、という直接的な定義に従って書き下しただけの回りくどいやり方だが、数式は1項ずつ手で検算した。</p>
+
+  <p>書き換えた後も、元の演算とまったく同じ結果になっているかを確認する必要がある。2種類の精度で突き合わせた。1つは通常の32ビット浮動小数点（fp32）、もう1つは推論を高速化するために精度を落として使う16ビット浮動小数点（fp16）。結果は、fp32では出力のすべてが完全に一致し、fp16でも、人物のシルエットを表すアルファチャンネル（pha）と、直前までのフレームの情報を次のフレームに引き継ぐための内部状態（r1〜r4。RVMが動画のちらつきを抑えるために保持している、いわば記憶のようなもの）が完全に一致した。</p>
 
   <p>これで解決したと、しばらくの間は考えていた。</p>
 
   <h3>問題の範囲を見誤っていた</h3>
-  <p>パッチを当てて改めてテストすると、今度はdepthwiseでもなんでもない、通常のgroup=1の標準Conv（Conv_8）が同じ症状で失敗した。エラーはCUDNN_FE failure 7: GRAPH_EXECUTION_FAILED。cuDNN 9.xは個々の畳み込みを直接叩くのではなく、演算の組み合わせをグラフとして宣言してから、その実行プラン（どのカーネル・どのタイル分割・どのアルゴリズムで動かすか）をcuDNN Frontend自身に選ばせる設計になっている。今回の失敗は、この実行プラン選択のフェーズそのものが、この世代のGPU向けにまだ十分整備されていないことを示していた。</p>
+  <p>パッチを当てて改めてテストすると、今度はdepthwiseでもなんでもない、通常の畳み込み層まで同じ症状で失敗した。エラーは「グラフの実行に失敗した」という趣旨の一行（<code>CUDNN_FE failure 7: GRAPH_EXECUTION_FAILED</code>）。cuDNN 9.xは個々の畳み込みを直接叩くのではなく、演算の組み合わせをグラフとして宣言してから、その実行プラン（どのカーネル・どのタイル分割・どのアルゴリズムで動かすか）をcuDNN Frontend自身に選ばせる設計になっている。今回の失敗は、この実行プラン選択のフェーズそのものが、この世代のGPU向けにまだ十分整備されていないことを示していた。</p>
 
   <p>depthwiseが特別だったのではなく、cuDNN Frontendの実行プラン選択そのものが、もっと広い範囲で不安定だった。ノード単位で個別に迂回するやり方は、当たった箇所には確実に効くが、当たっていない箇所には何の効果もない。CUDA 12.8とcuDNN 9.8の組み合わせにアップグレードした結果、YOLOv3・YOLOv4・MobileNet V1が同じ症状で失敗するという報告も他所に見つかった。少なくとも環境固有の現象ではないことは分かった。</p>
 
@@ -639,20 +641,20 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 
   <h3>TensorRT-RTXへの乗り換えと、そこでの新しい失敗</h3>
-  <p>方針を転換し、cuDNN経由のCUDA EPを避け、NVIDIAがクライアントRTX向けに提供しているTensorRT-RTX EPを使うことにした。GPU常駐テンソルの受け渡しに使っていたOrt::MemoryInfo("Cuda", ...)というハードコードを、実行プロバイダに依存しない共通の仕組み（g_seg.gpu_memory_info）に書き直し、AUTO→TensorRT-RTX→CUDA→CPUという段階的なフォールバックも用意した。</p>
+  <p>方針を転換し、cuDNN経由のCUDA EPを避け、NVIDIAがクライアントRTX向けに提供しているTensorRT-RTX EPを使うことにした。GPU上に置いたテンソルの受け渡し先を、それまでCUDA専用の指定でハードコードしていたのを、どの実行プロバイダでも共通に使える指定へ書き直し、AUTO→TensorRT-RTX→CUDA→CPUという段階的なフォールバックも用意した。</p>
 
-  <p>TensorRT-RTXに切り替えると、cuDNN由来のConvの失敗は解消した。しかし今度は、RVM内部のResizeノード（バックボーンとrefinerの間で解像度を橋渡しするために、実行時入力であるdownsample_ratioに依存して動的にサイズを決めているもの）を、TensorRT-RTXのパーサーが解析できず、Assertion !isInFlight(p.second.symbolicRep) failedという別のエラーで失敗するようになった。TensorRT系のパーサーは実行時に値が決まるResizeのサイズを扱いにくく、scales/sizes入力がグラフレベルの定数（initializer）でなければ解析できないという制約に、今回もそのまま引っかかった。</p>
+  <p>TensorRT-RTXに切り替えると、cuDNN由来のConvの失敗は解消した。しかし今度は、RVM内部のResizeノード（バックボーンとrefinerの間で解像度を橋渡しするために、実行時入力であるdownsample_ratioに依存して動的にサイズを決めているもの）を、TensorRT-RTXのパーサーが解析できず、内部の形状チェックに矛盾がある、という趣旨の別のエラーで失敗するようになった。TensorRT系のパーサーは実行時に値が決まるResizeのサイズを扱いにくく、scales/sizes入力がグラフレベルの定数（initializer）でなければ解析できないという制約に、今回もそのまま引っかかった。</p>
 
-  <p>これには比較的すぐに糸口が見つかった。MetaPuppetは実際にはセッションごとに固定の解像度でしか推論しないため、downsample_ratioを実行時入力として渡す必要はそもそもなかった。specialize_rvm_trtrtx.pyを書き、この値をモデル内の定数として焼き込み、内部のResizeを完全な静的形状に置き換えた。</p>
+  <p>これには比較的すぐに糸口が見つかった。MetaPuppetは実際にはセッションごとに固定の解像度でしか推論しないため、downsample_ratioを実行時入力として渡す必要はそもそもなかった。モデル変換スクリプトを書き、この値をモデル内の定数として焼き込み、内部のResizeを完全な静的形状に置き換えた。</p>
 
-  <p>Resizeの問題は解消したが、今度はExpand_204（RVMの再帰状態r1〜r4をブロードキャストする部分）で、ISliceLayer has out of bounds accessという、モデル側の改造では対処できない、TensorRT-RTX v0.4.0自体の内部の不具合に行き当たった。TensorRTのExpandは内部的にSliceレイヤーへ変換されることがあり、そこでの範囲外アクセスは、パーサーというよりビルダー側の不具合と見るのが妥当である。個別の失敗箇所をその都度モデル側で回避し続けるやり方には限界があることが見えてきた。</p>
+  <p>Resizeの問題は解消したが、今度はRVMの再帰状態r1〜r4をブロードキャストする部分で、「範囲外アクセス」という、モデル側の改造では対処できない、TensorRT-RTX側の内部の不具合に行き当たった。TensorRTのExpandは内部的にSliceレイヤーへ変換されることがあり、そこでの範囲外アクセスは、パーサーというよりビルダー側の不具合と見るのが妥当である。個別の失敗箇所をその都度モデル側で回避し続けるやり方には限界があることが見えてきた。</p>
 
   <h3>CPUフォールバックの確認と、最終的な実装</h3>
-  <p>並行して調べていたGPU常駐CUDAパスは、例外すら発生させずに黙って失敗するという、輪をかけて診断のしづらい症状を見せていた。専用の診断API（mppc_segmentation_copy_last_error）を用意しても、Ort::Exception<sup class="fnref" id="fnref-ortexc"><a href="#fn-ortexc">[3]</a></sup>（ONNX Runtimeが内部で投げるエラーの型）以外の何かによって失敗しているらしく、原因はまだ特定できていない。ここで一度、CPU推論への安全なフォールバックが確実に機能するかをUnity上で確認した。結果は「推論に成功したフレームが14、失敗して飛ばしたフレームが0、最終ステータスは正常」を意味するログ（<code>FramesInferred=14, FramesSkipped=0, LastStatus=OK</code>）で、画面上の人物クロッピングも正しく表示された。</p>
+  <p>並行して調べていたGPU常駐CUDAパスは、例外すら発生させずに黙って失敗するという、輪をかけて診断のしづらい症状を見せていた。専用の診断APIを用意しても、Ort::Exception<sup class="fnref" id="fnref-ortexc"><a href="#fn-ortexc">[3]</a></sup>（ONNX Runtimeが内部で投げるエラーの型）以外の何かによって失敗しているらしく、原因はまだ特定できていない。ここで一度、CPU推論への安全なフォールバックが確実に機能するかをUnity上で確認した。結果は「推論に成功したフレームが14、失敗して飛ばしたフレームが0、最終ステータスは正常」を意味するログ（<code>FramesInferred=14, FramesSkipped=0, LastStatus=OK</code>）で、画面上の人物クロッピングも正しく表示された。</p>
 
-  <p>現在の実装は、TensorRT-RTXではなく、通常のTensorRT SDK<sup class="fnref" id="fnref-trtrtxdiff"><a href="#fn-trtrtxdiff">[4]</a></sup>（11.2.1系）のAPIを直接呼び出す経路を使っている。ONNXを完全な静的形状（batch=2、640×360または512×288の固定解像度、再帰状態r1〜r4のチャンネル数・空間サイズもすべて数値で固定）に特殊化し、onnx.checkerとshape inferenceを通し、CPU上で元モデルと特殊化モデルの出力（phaだけでなくr1〜r4も含めて）を突き合わせ、Unityを経由しないスタンドアロンの実行ファイルでエンジンのビルドを確認してから、D3D11/CUDAの相互運用コードに進む、という順序で検証している。</p>
+  <p>現在の実装は、TensorRT-RTXではなく、通常のTensorRT SDK<sup class="fnref" id="fnref-trtrtxdiff"><a href="#fn-trtrtxdiff">[4]</a></sup>（11.2.1系）のAPIを直接呼び出す経路を使っている。ONNXを完全な静的形状（batch=2、640×360または512×288の固定解像度、再帰状態r1〜r4のチャンネル数・空間サイズもすべて数値で固定）に特殊化し、onnx.checkerとshape inferenceを通し、CPU上で元モデルと特殊化モデルの出力（phaだけでなくr1〜r4も含めて）を突き合わせ、Unityを経由しないスタンドアロンの実行ファイルでエンジンのビルドを確認してから、GPUの描画バックエンド（Direct3D 11、詳しくは第5章）とCUDAとの相互運用コードに進む、という順序で検証している。</p>
 
-  <p>この過程でNVIDIAの開発者フォーラムを検索していたところ、Jetsonくんで同じRVMモデルをパースしようとして、まったく同じところでつまずいている同志の投稿を見つけた。世界のどこかに、同じ深夜に同じエラーメッセージと向き合っている人がいるというのは、地味に励みになる。その報告によれば、downsample_ratioの固定化だけでは不十分で、shapeに関わるテンソル<sup class="fnref" id="fnref-shapetensor"><a href="#fn-shapetensor">[5]</a></sup>をINT64からINT32へ明示的にキャストしなければ、TensorRTのパーサーが"network input that is shape tensor must have type Int32"というエラーで落ちるとのことだった。この情報をもとに、specialize_rvm_tensorrt.pyにINT32化の処理を追加し、実装を完了している。</p>
+  <p>この過程でNVIDIAの開発者フォーラムを検索していたところ、Jetsonくんで同じRVMモデルをパースしようとして、まったく同じところでつまずいている同志の投稿を見つけた。世界のどこかに、同じ深夜に同じエラーメッセージと向き合っている人がいるというのは、地味に励みになる。その報告によれば、downsample_ratioの固定化だけでは不十分で、shapeに関わるテンソル<sup class="fnref" id="fnref-shapetensor"><a href="#fn-shapetensor">[5]</a></sup>をINT64からINT32へ明示的にキャストしなければ、TensorRTのパーサーが"network input that is shape tensor must have type Int32"というエラーで落ちるとのことだった。この情報をもとに、モデル変換スクリプトにINT32化の処理を追加し、実装を完了している。</p>
 
   <div class="spec">
     <div class="spec-title">推論バックエンドの最終構成</div>
@@ -684,7 +686,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <span class="chapter-stage">GPU-Resident Pipeline / Pose / Hand Tracking</span>
   </div>
   <h2>マスキング、姿勢推定、手指トラッキングの合成</h2>
-  <p class="lede">映像は一度もCPUに戻らない。RVMとRTMPoseは同じGPUメモリの上で処理を続け、最終的な操作の正はQuestの手指トラッキングが持つ。</p>
+  <p class="lede">RVMとRTMPoseはGPU上に常駐して処理を続け、操作の判定はQuestの手指トラッキングが持つ。</p>
 
   <p>体を切り出したあと、そのシルエットをVR内のアバターの動きに変換するには、関節や骨格の位置を推定する必要がある。ここではMediaPipeではなく<a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a>を使っている。理由は、RTMPoseがRVMと同じD3D11<sup class="fnref" id="fnref-d3d11"><a href="#fn-d3d11">[1]</a></sup>/CUDA相互運用の枠組みに乗り、CPUへ映像を戻すことなくGPU上に常駐したまま処理を回せるためである。RTMPoseは、RVMのマスクを常に受け取るわけではなく、目のID（左右）が一致していること、マスクが未来のフレームのものでないこと、許容ラグの範囲内であることを確認したうえで受け取る。この条件を満たさない場合はマスクを使わず、それでも体験自体が止まらないのは、Questのハンド・パームトラッキングが常にゲームプレイ上の正として扱われ、RVMやRTMPoseの結果とは独立して動いているためである。マスクと姿勢推定は、あくまで見た目の合成に使われるレイヤーであり、操作の判定そのものには使っていない。</p>
 
