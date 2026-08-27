@@ -1,15 +1,30 @@
-<title>自分自身を操作する</title>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#020202">
+<title>基盤の実装で頑張ったこと — MetaPuppet</title>
+<meta name="description" content="ステレオカメラの映像から人物領域を抽出し、VR内のアバターの見た目に反映する。MetaPuppetの撮影・伝送・推論・描画の実装記録。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基盤の実装で頑張ったこと — MetaPuppet">
+<meta property="og:description" content="ステレオカメラの映像から人物領域を抽出し、VR内のアバターの見た目に反映する。撮影から描画までの実装記録。">
+<meta property="og:url" content="https://meta-puppet.github.io/report/">
+<meta property="og:image" content="https://meta-puppet.github.io/report/mp_logo.png">
+<link rel="icon" type="image/png" href="mp_logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;700&display=swap">
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;700&display=swap');
-
 :root{
   /* dark-first, to match the MetaPuppet main site */
   --paper:#020202;
   --paper-raised:#0e0e10;
   --ink:#f2f0ee;
   --ink-soft:#9a9a9e;
-  --ink-faint:#5c5c60;
+  --ink-faint:#6e6e73;
   --rule:#232326;
   --rule-strong:#35353a;
   --accent:#e78fb3;
@@ -471,6 +486,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
   .page,.cover,.pipeline,.pagefoot{padding-left:20px;padding-right:20px;}
 }
 </style>
+</head>
+<body>
 
 <article>
 
@@ -579,7 +596,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>左右の映像は、1枚の画像の左半分と右半分にそれぞれの目を並べるSide-by-Side（SBS）方式<sup class="fnref" id="fnref-interleave"><a href="#fn-interleave">[1]</a></sup>でまとめている。SBSにした理由は主に描画側にある。後段のVR表示シェーダーが1枚のテクスチャのアップロードだけで両目分をまかなえるため、伝送量とテクスチャ転送回数を抑えられる（詳細は第6章）。</p>
 
-  <p>もう一つ、実装として組み込んでいるのが、Raspberry Pi上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Pi上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
+  <p>もう一つ、実装として組み込んでいるのが、Raspberry Pi上で動かす軽量な<a href="https://github.com/PeterL1n/RobustVideoMatting">RVM</a>推論による、圧縮の優先度づけである。PC側でVR描画用に使っているRVM（第4章・第5章で扱う本体のマスキングパイプライン）とは別に、Raspberry Pi上でもCPU向けに調整したRVMモデル（rvm_mobilenetv3_fp32.onnx）を動かし、その出力から32×32タイル単位の重要度マップを作る、人物のタイルは量子化を甘く、背景のタイルは強くする、という設計でH.264のマクロブロックごとの量子化オフセットに反映させるコードは書いてある。ただし正直に書いておくと、これが会場の本番機で最後まで安定して有効化されていたかどうか、原稿を書いている自分自身、完全な自信があるわけではない。Raspberry Pi 5にカメラ2台とエンコーダとニューラルネットワーク推論を同時に載せて30fpsを維持するのは、要求としてはかなり欲張りな部類で（Raspberry Pi本人の意見は聞いていない）、この部分が万一落ちても、その場合は単に「全タイル一律の優先度」にフォールバックするだけで、映像自体は途切れない設計にはしてある。</p>
 
   <div class="spec">
     <div class="spec-title">エンコーダの実装値</div>
@@ -631,7 +648,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 };</pre>
   </div>
 
-  <p>誤り訂正には、複数個の欠損を復元できるReed-Solomon系<sup class="fnref" id="fnref-rs"><a href="#fn-rs">[1]</a></sup>ではなく、1フレームにつきXORパリティを1個だけ追加する単一パリティ検査符号（single parity check code）を使っている。理論上は2個以上のチャンクが欠けると復元できないが、パリティの計算がXOR一回で済み、実装も単純になる。1フレームの寿命がミリ秒単位のこの用途では、複数欠損に対応する複雑な誤り訂正の計算に時間をかけるより、次のフレームをそのまま受け取った方が結果的に速いと判断した。誤り訂正の手厚さ（FECのグループサイズ）も、第2章の重要度マップを再利用してタイルごとに変えている。</p>
+  <p>誤り訂正には、複数個の欠損を復元できるReed-Solomon系<sup class="fnref" id="fnref-rs"><a href="#fn-rs">[1]</a></sup>ではなく、1フレームにつきXORパリティを1個だけ追加する単一パリティ検査符号（single parity check code）を使っている。理論上は2個以上のチャンクが欠けると復元できないが、パリティの計算がXOR一回で済み、実装も単純になる。1フレームの寿命がミリ秒単位のこの用途では、複数欠損に対応する複雑な誤り訂正の計算に時間をかけるより、次のフレームをそのまま受け取った方が結果的に速いと判断した。ガロア体の多項式演算には敬意しかないが、寿命ミリ秒のフレームに施す延命治療としては、いささか高級すぎる。誤り訂正の手厚さ（FECのグループサイズ）も、第2章の重要度マップを再利用してタイルごとに変えている。</p>
 
   <p>受信側は、直近何秒かでどれだけパケットが届いていて、どれだけ欠けていたかを10Hzで数え、その結果を送信側に送り返している。送信側はこれを見て、回線が詰まっていそうなら送出のペースを落とし、余裕がありそうなら戻す、という調整をしている。もう一つ、キーフレーム（それ単体で映像を復元できる特別なフレーム。詳しくは後述）が全部届く前に、次の新しいフレームに追い越されてしまった場合には、受信側から送信側へ1回だけ再送要求のパケットを送る仕組みも入れている。</p>
 
@@ -701,7 +718,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <p>Resizeの問題は解消したが、今度はRVMの再帰状態r1〜r4をブロードキャストする部分で、「範囲外アクセス」という、モデル側の改造では対処できない、TensorRT-RTX側の内部の不具合に行き当たった。TensorRTのExpandは内部的にSliceレイヤーへ変換されることがあり、そこでの範囲外アクセスは、パーサーというよりビルダー側の不具合と見るのが妥当である。個別の失敗箇所をその都度モデル側で回避し続けるやり方には限界があることが見えてきた。</p>
 
   <h3>CPUフォールバックの確認と、最終的な実装</h3>
-  <p>並行して調べていたGPU常駐CUDAパスは、例外すら発生させずに黙って失敗するという、輪をかけて診断のしづらい症状を見せていた。専用の診断APIを用意しても、Ort::Exception<sup class="fnref" id="fnref-ortexc"><a href="#fn-ortexc">[3]</a></sup>（ONNX Runtimeが内部で投げるエラーの型）以外の何かによって失敗しているらしく、原因はまだ特定できていない。ここで一度、CPU推論への安全なフォールバックが確実に機能するかをUnity上で確認した。結果は「推論に成功したフレームが14、失敗して飛ばしたフレームが0、最終ステータスは正常」を意味するログ（<code>FramesInferred=14, FramesSkipped=0, LastStatus=OK</code>）で、画面上の人物クロッピングも正しく表示された。</p>
+  <p>並行して調べていたGPU常駐CUDAパスは、例外すら発生させずに黙って失敗するという、輪をかけて診断のしづらい症状を見せていた。エラーを出して落ちるソフトウェアは誠実である、ということを、正常終了の顔をして何もしないソフトウェアに教えられることになるとは思わなかった。専用の診断APIを用意しても、Ort::Exception<sup class="fnref" id="fnref-ortexc"><a href="#fn-ortexc">[3]</a></sup>（ONNX Runtimeが内部で投げるエラーの型）以外の何かによって失敗しているらしく、原因はまだ特定できていない。ここで一度、CPU推論への安全なフォールバックが確実に機能するかをUnity上で確認した。結果は「推論に成功したフレームが14、失敗して飛ばしたフレームが0、最終ステータスは正常」を意味するログ（<code>FramesInferred=14, FramesSkipped=0, LastStatus=OK</code>）で、画面上の人物クロッピングも正しく表示された。</p>
 
   <p>現在の実装は、TensorRT-RTXではなく、通常のTensorRT SDK<sup class="fnref" id="fnref-trtrtxdiff"><a href="#fn-trtrtxdiff">[4]</a></sup>（11.2.1系）のAPIを直接呼び出す経路を使っている。ONNXを完全な静的形状（batch=2、640×360または512×288の固定解像度、再帰状態r1〜r4のチャンネル数・空間サイズもすべて数値で固定）に特殊化し、onnx.checkerとshape inferenceを通し、CPU上で元モデルと特殊化モデルの出力（phaだけでなくr1〜r4も含めて）を突き合わせ、Unityを経由しないスタンドアロンの実行ファイルでエンジンのビルドを確認してから、GPUの描画バックエンド（Direct3D 11、詳しくは第5章）とCUDAとの相互運用コードに進む、という順序で検証している。</p>
 
@@ -714,9 +731,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
       <tr><td>GPUバックエンド</td><td class="num">TensorRT 11.2.1 直接呼び出し</td></tr>
       <tr><td>モデル形状</td><td class="num">batch=2, 640×360 / 512×288 固定</td></tr>
       <tr><td>shape tensorの型</td><td class="num">INT64からINT32へキャスト</td></tr>
-      <tr><td>フォールバック順</td><td class="num">AUTO → TensorRT-RTX → CUDA → CPU</td></tr>
+      <tr><td>フォールバック順（ONNX Runtime経路）</td><td class="num">AUTO → TensorRT-RTX → CUDA → CPU</td></tr>
       <tr><td>検証方法</td><td class="num">onnx.checker + shape inference<br>元モデルとの出力突合（pha, r1〜r4）</td></tr>
-      <tr><td>Raspberry Pi上のCPUフォールバック</td><td class="num">約18ms/frame、30fps以内に収まる</td></tr>
     </table>
   </div>
 
@@ -740,7 +756,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>体を切り出したあと、そのシルエットをVR内のアバターの動きに変換するには、関節や骨格の位置を推定する必要がある。ここではMediaPipeではなく<a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a>を使っている。理由は、RTMPoseがRVMと同じD3D11<sup class="fnref" id="fnref-d3d11"><a href="#fn-d3d11">[1]</a></sup>/CUDA相互運用の枠組みに乗り、CPUへ映像を戻すことなくGPU上に常駐したまま処理を回せるためである。RTMPoseは、RVMのマスクを常に受け取るわけではなく、目のID（左右）が一致していること、マスクが未来のフレームのものでないこと、許容ラグの範囲内であることを確認したうえで受け取る。この条件を満たさない場合はマスクを使わず、それでも体験自体が止まらないのは、Questのハンド・パームトラッキングが常にゲームプレイ上の正として扱われ、RVMやRTMPoseの結果とは独立して動いているためである。マスクと姿勢推定は、あくまで見た目の合成に使われるレイヤーであり、操作の判定そのものには使っていない。</p>
 
-  <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[5]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[2]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[3]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
+  <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[2]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[3]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[4]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
 
   <div class="diagram">
     <div class="diagram-title">GPU常駐パイプライン（CPUを経由しない経路）</div>
@@ -757,14 +773,14 @@ sup.fnref a{color:inherit;text-decoration:none;}
     </div>
   </div>
 
-  <p>同じ組み合わせ（リングバッファのスロットと再帰状態バンクのアドレスの組）に対してはCUDA Graph<sup class="fnref" id="fnref-cudagraph"><a href="#fn-cudagraph">[4]</a></sup>のキャプチャを試み、成功すればその分の呼び出しオーバーヘッドを削れる。キャプチャが失敗する場合は通常のIoBinding経由の呼び出しに自動でフォールバックする。リングバッファも2スロットに留め、常に最新のフレームが処理対象になるようにしている。</p>
+  <p>同じ組み合わせ（リングバッファのスロットと再帰状態バンクのアドレスの組）に対してはCUDA Graph<sup class="fnref" id="fnref-cudagraph"><a href="#fn-cudagraph">[5]</a></sup>のキャプチャを試み、成功すればその分の呼び出しオーバーヘッドを削れる。キャプチャが失敗する場合は通常のIoBinding経由の呼び出しに自動でフォールバックする。リングバッファも2スロットに留め、常に最新のフレームが処理対象になるようにしている。</p>
 
   <div class="footnotes">
     <ol>
       <li id="fn-d3d11">Direct3D 11。Windows上でGPUに描画命令を出すためのAPIの一つ。Unityの描画バックエンドとしても使われており、映像デコーダの出力やRVMの推論結果は、このDirect3D 11が管理するGPU上のメモリ（テクスチャ）としてやり取りされる。CUDAとの相互運用は、このDirect3D 11側のメモリをCUDA側からも直接読み書きできるようにする仕組みを指す。</li>
+      <li id="fn-nv12-ch5">映像の色を輝度（Y）と色差（UV）に分けて記録する形式の一つ。色差は輝度の半分の解像度に間引かれており、その分データ量が少なくて済むため、映像のデコード・エンコードで標準的に使われる（第6章で改めて触れる）。</li>
       <li id="fn-nchw">画像を並べるバイト順の規約の一つ。N（枚数）→C（色チャンネル数）→H（縦）→W（横）の順に並べる、という意味で、ニューラルネットワークの推論エンジンが入力テンソルとして受け取る標準的な並び方である。これに対し、通常の画像ファイルやシェーダーはH×W×Cの順（HWC、1ピクセルごとにRGBが並ぶ）で扱うことが多く、推論に渡す前にこの並べ替えが必要になる。</li>
       <li id="fn-iobinding">ONNX Runtimeの機能の一つ。通常は推論のたびに入出力データをCPUとGPUの間でコピーするが、IoBindingを使うとGPU上の特定のメモリアドレスを入出力として固定でき、コピーを省略できる。</li>
-      <li id="fn-nv12-ch5">映像の色を輝度（Y）と色差（UV）に分けて記録する形式の一つ。色差は輝度の半分の解像度に間引かれており、その分データ量が少なくて済むため、映像のデコード・エンコードで標準的に使われる（第6章で改めて触れる）。</li>
       <li id="fn-cudagraph">推論1回につき、実際にはGPU上のカーネル呼び出しやメモリ操作が何十個も連なって実行されている。<a href="https://developer.nvidia.com/blog/cuda-graphs/">CUDA Graph</a>は、この一連の呼び出しを「ノードとその依存関係」というグラフ構造として一度だけ記録（キャプチャ）しておき、以降はCPU側から1回の呼び出しでそのグラフをまるごと再生できる仕組みである。「グラフ」という名前は、この依存関係の構造そのものを指している。</li>
     </ol>
   </div>
@@ -822,3 +838,5 @@ sup.fnref a{color:inherit;text-decoration:none;}
 <div class="pagefoot">MetaPuppet</div>
 
 </article>
+</body>
+</html>
