@@ -785,6 +785,13 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[2]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[3]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[4]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
 
+  <p>左右のカメラは物理的に完全には揃わないため、片方の目のマスクをもう片方に対して数ピクセル単位でずらして重ね合わせる調整が要る。これを手作業で追い込むためのデバッグ画面も作っていて、矢印キーでピクセル単位のずれを送りながら、RVMのマスク（人物の輪郭）を見ながら左右を合わせ込む。</p>
+
+  <div class="embed">
+    <img src="rvm_stereo_align.png" alt="ステレオ目合わせのデバッグ画面。右目のマスクをX -20.30px、Y -3.62px シフトしながら調整している様子" loading="lazy">
+    <div class="embed-caption">ステレオ目合わせのデバッグ画面。矢印キーでピクセル単位に右目のマスクをずらしながら、左右のRVM出力を合わせ込む</div>
+  </div>
+
   <div class="diagram">
     <div class="diagram-title">GPU常駐パイプライン。全区間でホストとの転送は0バイト</div>
     <div class="dg-col">
