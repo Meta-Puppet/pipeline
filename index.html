@@ -348,6 +348,25 @@ code{
   padding:0 8px;
   font-size:14px;
 }
+.dg-col{display:flex; flex-direction:column;}
+.dg-step{
+  border:1px solid var(--rule-strong);
+  background:var(--paper);
+  border-radius:2px;
+  padding:12px 16px;
+  line-height:1.6;
+}
+.dg-step b{display:block; font-size:13.5px; color:var(--ink); font-family:"Noto Sans JP",sans-serif;}
+.dg-step small{display:block; color:var(--ink-soft); font-size:12px; margin-top:2px;}
+.dg-step .code-note{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint);}
+.dg-step.hot{border-color:var(--accent);} .dg-step.hot b{color:var(--accent);}
+.dg-step.gpu{border-color:var(--accent2);} .dg-step.gpu b{color:var(--accent2);}
+.dg-down{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  color:var(--ink-faint);
+  padding:7px 0 7px 18px;
+}
 
 table.data{
   width:100%;
@@ -704,15 +723,15 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <p>depthwiseが特別だったのではなく、cuDNN Frontendの実行プラン選択そのものが、もっと広い範囲で不安定だった。ノード単位で個別に迂回するやり方は、当たった箇所には確実に効くが、当たっていない箇所には何の効果もない。CUDA 12.8とcuDNN 9.8の組み合わせにアップグレードした結果、YOLOv3・YOLOv4・MobileNet V1が同じ症状で失敗するという報告も他所に見つかった。少なくとも環境固有の現象ではないことは分かった。</p>
 
   <div class="diagram">
-    <div class="diagram-title">推論バックエンドが壊れ直した経路</div>
-    <div class="dg-row">
-      <div class="dg-box hot"><b>CUDA EP + cuDNN</b><small>実行プラン選択が不安定<br>GRAPH_EXECUTION_FAILED</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box gpu"><b>TensorRT-RTX EP</b><small>動的Resizeを解析できず<br>Assertion失敗</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box gpu"><b>静的形状に特殊化</b><small>ISliceLayer out of bounds<br>Expand内部のバグ</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box"><b>TensorRT 11.2.1<br>を直接呼び出し</b><small>INT32 shape tensor化で解決</small></div>
+    <div class="diagram-title">推論バックエンドの変遷</div>
+    <div class="dg-col">
+      <div class="dg-step hot"><b>ONNX Runtime CUDA EP（cuDNN 9経由）</b><small>Blackwell世代で実行プラン選択が不安定。depthwise convに続いて通常のConvも失敗 <span class="code-note">GRAPH_EXECUTION_FAILED</span></small></div>
+      <div class="dg-down">↓ cuDNNを経由しないEPへ乗り換え</div>
+      <div class="dg-step"><b>TensorRT-RTX EP</b><small>Convの失敗は解消。downsample_ratioに依存する動的Resizeをパーサーが解析できず失敗</small></div>
+      <div class="dg-down">↓ モデル側を静的形状に焼き込み</div>
+      <div class="dg-step"><b>静的形状に特殊化したONNX</b><small>Resizeは通過。再帰状態r1〜r4のExpandがSliceに変換される際に範囲外アクセス（ビルダー側の不具合）</small></div>
+      <div class="dg-down">↓ EPをやめてSDKを直接呼ぶ</div>
+      <div class="dg-step gpu"><b>TensorRT 11.2.1 直接呼び出し（現行）</b><small>shape tensorをINT64からINT32へキャストしてパーサーを通過。batch=2・固定解像度でエンジンをビルド</small></div>
     </div>
   </div>
 
@@ -767,17 +786,17 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[2]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[3]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[4]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
 
   <div class="diagram">
-    <div class="diagram-title">GPU常駐パイプライン（CPUを経由しない経路）</div>
-    <div class="dg-row">
-      <div class="dg-box gpu"><b>D3D11 NV12</b><small>左右デコード映像</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box gpu"><b>Resize / 色変換 / NCHW</b><small>コンピュートシェーダー</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box hot"><b>RVM (batch=2)</b><small>CUDA interop / IoBinding</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box gpu"><b>マスク後処理</b><small>境界ぼかし＋時間EMA</small></div>
-      <div class="dg-arrow">→</div>
-      <div class="dg-box"><b>RTMPose</b><small>条件を満たす時のみマスクを使用</small></div>
+    <div class="diagram-title">GPU常駐パイプライン。全区間でホストとの転送は0バイト</div>
+    <div class="dg-col">
+      <div class="dg-step"><b>デコード済み映像（NV12）</b><small>左右2枚。D3D11テクスチャとしてGPUに載った状態で受け取る</small></div>
+      <div class="dg-down">↓ D3D11コンピュートシェーダー</div>
+      <div class="dg-step"><b>前処理</b><small>リサイズ、BT.709色変換、正規化、NCHW並べ替えまでを1パスで行う</small></div>
+      <div class="dg-down">↓ CUDA相互運用バッファ（IoBindingで固定）</div>
+      <div class="dg-step hot"><b>RVM推論（batch=2）</b><small>左右をまとめて1回で推論。再帰状態r1〜r4は目ごとに独立管理</small></div>
+      <div class="dg-down">↓ D3D11へ戻す（GPU内）</div>
+      <div class="dg-step"><b>マスク後処理</b><small>境界のぼかしと時間方向のEMA</small></div>
+      <div class="dg-down">↓ 条件（目のID一致・鮮度・許容ラグ）を満たすときのみ</div>
+      <div class="dg-step gpu"><b>RTMPose</b><small>姿勢推定。マスクが条件を満たさなければマスクなしで動く</small></div>
     </div>
   </div>
 
