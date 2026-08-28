@@ -158,6 +158,8 @@ body{
   font-family:"Noto Sans JP",sans-serif;
   font-size:13.5px;
 }
+.cover-meta .author{display:inline-flex; align-items:center; gap:8px;}
+.cover-meta .author img{width:22px; height:22px; border-radius:50%; object-fit:cover; display:block; filter:grayscale(1);}
 
 .pipeline{
   max-width:760px;
@@ -506,9 +508,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <h1>自分自身を、<em>自分自身で</em><br>操作する。</h1>
   <p class="sub">ステレオカメラの映像から人物領域を抽出し、VR内のアバターの見た目に反映する。撮影から描画までの実装記録。</p>
   <div class="cover-meta">
-    <div><span>Author</span><b>清水（ソフトウェア実装担当）</b></div>
-    <div><span>Project</span><b>MetaPuppet</b></div>
-    <div><span>Scope</span><b>撮影・伝送・推論・描画の全実装</b></div>
+    <div><span>Author</span><b class="author"><img src="kosuke.jpg" alt="">清水（ソフトウェア実装担当）</b></div>
   </div>
 </section>
 
