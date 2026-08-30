@@ -711,6 +711,13 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
   <p>MetaPuppetのPCVRパイプラインでは、ステレオカメラの映像から人物だけをリアルタイムに切り出すために、RVMを<a href="https://onnx.ai/">ONNX</a><sup class="fnref" id="fnref-onnx"><a href="#fn-onnx">[1]</a></sup>形式に変換したうえで、<a href="https://onnxruntime.ai/">ONNX Runtime</a>の<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>経由で動かしている。開発機を、<a href="https://x.com/aerhgub/status/2092930376822050967?s=20">巷で大変発火しやすいと噂の</a>RTX 5070（Blackwell世代）のノートPCに切り替えるまでは、特に問題なく動いていた。Blackwellに切り替えたところ、いろいろな箇所でエラーが出るようになった。以下は、その経緯である。</p>
 
+  <div class="embed">
+    <blockquote class="twitter-tweet" data-theme="dark" data-media-max-width="560" data-dnt="true">
+      <a href="https://twitter.com/jun1228909/status/2093972652134404217"></a>
+    </blockquote>
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+  </div>
+
   <p>RVMのrefiner部分にある、depthwise convolutionという種類の畳み込み層（4か所）が、cuDNN Frontend<sup class="fnref" id="fnref-cudnnfe"><a href="#fn-cudnnfe">[2]</a></sup>の内部で失敗するようになった。エラーメッセージは短く、原因の手がかりはほとんど含まれていない。この手の一行エラーというのは、読んだ瞬間は情報が書いてあるように見えて、実際には「失敗しました」以上のことを何も教えてくれない、という性質を持っている。仕方がないので、乏しい状況証拠だけを頼りに推理を組み立てることになる。最初に立てた仮説は、「depthwiseはgroup convという特殊な形態だから、新しいGPU世代向けのカーネルがまだ用意されていないのだろう」というものだった。今にして思えば早計な仮説だった。</p>
 
   <p>この仮説に基づき、対処法を考えた。GPUライブラリ側の修正を待つ、あるいはこの種類の層自体を使わないようモデルを設計し直す、という選択肢もあったが、それでは次のGPU世代でまた同じ問題に当たる可能性がある。そこで、失敗している4か所のdepthwise convolutionを、cuDNNの実行プラン選択を経由しない、もっと原始的な演算の組み合わせ（パディング→スライス→掛け算→足し算）に手作業で書き換えるという方法を選んだ。3x3のdepthwise convolutionは、パディング済みの入力から9通りのタップ位置ごとにスライスを切り出し、対応する重みを掛けて9個ぶん足し合わせる、という直接的な定義に従って書き下しただけの回りくどいやり方だが、数式は1項ずつ手で検算した。</p>
