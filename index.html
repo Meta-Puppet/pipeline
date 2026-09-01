@@ -423,6 +423,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
 .embed{margin:28px 0;}
 .embed img, .embed video{width:100%; height:auto; border:1px solid var(--rule-strong); border-radius:2px; display:block;}
+.embed.portrait img, .embed.portrait video{max-width:320px; margin:0 auto;}
+.embed.portrait .embed-caption{max-width:320px; margin-left:auto; margin-right:auto; text-align:center;}
 .embed-caption{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint); margin-top:8px;}
 
 .signature{
@@ -805,6 +807,18 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <h2>マスキング、姿勢推定、手指トラッキングの合成</h2>
 
   <p>体を切り出したあと、そのシルエットをVR内のアバターの動きに変換するには、関節や骨格の位置を推定する必要がある。ここではMediaPipeではなく<a href="https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose">RTMPose</a>を使っている。理由は、RTMPoseがRVMと同じD3D11<sup class="fnref" id="fnref-d3d11"><a href="#fn-d3d11">[1]</a></sup>/CUDA相互運用の枠組みに乗り、CPUへ映像を戻すことなくGPU上に常駐したまま処理を回せるためである。RTMPoseは、RVMのマスクを常に受け取るわけではなく、目のID（左右）が一致していること、マスクが未来のフレームのものでないこと、許容ラグの範囲内であることを確認したうえで受け取る。この条件を満たさない場合はマスクを使わず、それでも体験自体が止まらないのは、Questのハンド・パームトラッキングが常にゲームプレイ上の正として扱われ、RVMやRTMPoseの結果とは独立して動いているためである。マスクと姿勢推定は、あくまで見た目の合成に使われるレイヤーであり、操作の判定そのものには使っていない。</p>
+
+  <p>この章で述べる構成に落ち着く前、動かし始めたばかりのRVMはまだこの精度だった。マスクは大きな塊ごと欠け、手を振ると輪郭がまったく追従していない。</p>
+
+  <div class="embed portrait">
+    <video src="rvm_early_mask_1.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+    <div class="embed-caption">改良前のRVM。マスクが塊ごと欠け、手の動きに輪郭が追従していない</div>
+  </div>
+
+  <div class="embed portrait">
+    <video src="rvm_early_mask_2.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+    <div class="embed-caption">改良前のRVM。Unityのシーンへの合成はできているが、マスクの欠けとちらつきが残る</div>
+  </div>
 
   <p>GPU常駐パイプラインで徹底しているのは、CPUとの往復を発生させないことである。カメラから来たNV12<sup class="fnref" id="fnref-nv12-ch5"><a href="#fn-nv12-ch5">[2]</a></sup>の映像は、D3D11のコンピュートシェーダーでリサイズ・色空間変換（BT.709）・正規化・NCHW<sup class="fnref" id="fnref-nchw"><a href="#fn-nchw">[3]</a></sup>並べ替えまでを済ませ、CUDA相互運用のバッファへそのまま渡り、ONNX RuntimeのIoBinding<sup class="fnref" id="fnref-iobinding"><a href="#fn-iobinding">[4]</a></sup>へ永続的に結び付けられる。ステレオの左右2枚はbatch=2としてまとめて1回の推論に投げ、再帰状態（r1〜r4）は目ごとに独立したレーンで管理し、バッチ全体が成功したときだけ状態を入れ替える。推論結果のアルファチャンネルは、D3D11側に戻ってから境界のぼかしと時間方向のEMAを経て、そのままシェーダーに渡る。この経路では、ソース映像のホストからデバイスへの転送も、マスクのデバイスからホストへの転送も、バイト数はゼロになっている。</p>
 
