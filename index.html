@@ -422,7 +422,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 .footnotes li:target,.footnotes li:target::marker{color:var(--accent);}
 
 .embed{margin:28px 0;}
-.embed img{width:100%; height:auto; border:1px solid var(--rule-strong); border-radius:2px; display:block;}
+.embed img, .embed video{width:100%; height:auto; border:1px solid var(--rule-strong); border-radius:2px; display:block;}
 .embed-caption{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint); margin-top:8px;}
 
 .signature{
@@ -627,6 +627,11 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <div class="embed">
     <img src="stereo_camera.jpg" alt="自作ステレオカメラ。Raspberry Pi 5に2台のCamera Module 3 Wideをフレキシブルケーブルで接続したリグ" loading="lazy">
     <div class="embed-caption">自作ステレオカメラリグ。Camera Module 3 Wide ×2 と Raspberry Pi 5</div>
+  </div>
+
+  <div class="embed">
+    <video src="stereo_camera_first_footage.mp4" autoplay muted loop playsinline controls preload="metadata"></video>
+    <div class="embed-caption">組み立てたステレオカメラの映像が、初めてPC側に届いたときの記録</div>
   </div>
 
   <p>Raspberry Piには映像圧縮専用のハードウェアが載っているが、今回はあえて使わず、CPUで動くソフトウェアエンコーダの<a href="https://www.videolan.org/developers/x264.html">x264</a>を使っている。理由は、圧縮の力配分を画面の場所ごとに自分で決めたいからである。この体験で画質が要るのは人物が写っている部分だけで、背景はいくら粗くても構わない。H.264の映像は画面を16×16画素の小さなブロックに分けて圧縮していて、x264はこのブロック1つ1つに「ここは丁寧に、ここは粗く」という指定を外から渡せる。一方、Raspberry Piのハードウェアエンコーダは映像全体の圧縮率の目標を選べるだけで、画面の中の場所ごとの指定は受け付けない。あわせて、圧縮効率と引き換えに遅延を増やす機能（時間的に後のフレームを参照するBフレームや、数フレーム先まで見てから圧縮を決める先読み）はすべて切り、とにかく速く送り出すことを優先する設定にしている。</p>
