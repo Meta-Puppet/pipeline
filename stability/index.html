@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#020202">
+<title>GPUを落とさないための実装 — MetaPuppet</title>
+<meta name="description" content="Direct3D 11とCUDAを同じGPUに同居させたまま、シーン切り替え直後のTDRクラッシュを消していった記録。プリウォーム、ロックの取り決め、レビューで見つかった残りの問題。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GPUを落とさないための実装 — MetaPuppet">
+<meta property="og:description" content="D3D11とCUDAを同居させたままTDRを消す。プリウォーム、ロックの取り決め、レビューの記録。">
+<meta property="og:url" content="https://meta-puppet.github.io/pipeline/stability/">
+<meta property="og:image" content="https://meta-puppet.github.io/pipeline/mp_logo.png">
+<link rel="icon" type="image/png" href="../mp_logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  /* dark-first, to match the MetaPuppet main site */
+  --paper:#020202;
+  --paper-raised:#0e0e10;
+  --ink:#f2f0ee;
+  --ink-soft:#9a9a9e;
+  --ink-faint:#6e6e73;
+  --rule:#232326;
+  --rule-strong:#35353a;
+  --accent:#e78fb3;
+  --accent-soft:#3a2530;
+  --accent2:#6fbfc4;
+  --accent2-soft:#193638;
+  --code-bg:#0a0a0b;
+  --code-ink:#e7e6e0;
+  --code-accent:#e78fb3;
+  --code-accent2:#6fbfc4;
+}
+
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --paper:#faf9f6;
+    --paper-raised:#f2f0eb;
+    --ink:#171a1d;
+    --ink-soft:#4b5459;
+    --ink-faint:#8b9296;
+    --rule:#d8d5cd;
+    --rule-strong:#b9b5aa;
+    --accent:#b8500e;
+    --accent-soft:#e8c7a9;
+    --accent2:#14646b;
+    --accent2-soft:#bcdadc;
+    --code-bg:#171a1d;
+    --code-ink:#e7e6e0;
+    --code-accent:#e0954f;
+    --code-accent2:#6fbfc4;
+  }
+}
+:root[data-theme="light"]{
+  --paper:#faf9f6;
+  --paper-raised:#f2f0eb;
+  --ink:#171a1d;
+  --ink-soft:#4b5459;
+  --ink-faint:#8b9296;
+  --rule:#d8d5cd;
+  --rule-strong:#b9b5aa;
+  --accent:#b8500e;
+  --accent-soft:#e8c7a9;
+  --accent2:#14646b;
+  --accent2-soft:#bcdadc;
+  --code-bg:#171a1d;
+  --code-ink:#e7e6e0;
+  --code-accent:#e0954f;
+  --code-accent2:#6fbfc4;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Sans",sans-serif;
+  font-size:15.5px;
+  line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+
+.page{
+  max-width:760px;
+  margin:0 auto;
+  padding:64px 40px 90px;
+}
+
+.cover{
+  max-width:760px;
+  margin:0 auto;
+  padding:76px 40px 60px;
+  border-bottom:1px solid var(--rule);
+}
+.cover-kicker{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11.5px;
+  letter-spacing:.18em;
+  color:var(--accent);
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:22px;
+}
+.cover-kicker::before{
+  content:"";
+  width:26px;height:1px;
+  background:var(--accent);
+  display:inline-block;
+}
+.cover h1{
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
+  font-weight:800;
+  font-size:clamp(32px,5.6vw,48px);
+  line-height:1.4;
+  margin:0 0 20px;
+  text-wrap:balance;
+  letter-spacing:.01em;
+}
+.cover h1 em{
+  font-style:normal;
+  color:var(--accent);
+}
+.cover .sub{
+  font-size:15.5px;
+  color:var(--ink-soft);
+  max-width:56ch;
+  margin:0 0 34px;
+  text-wrap:balance;
+}
+.cover-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:28px 40px;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  color:var(--ink-soft);
+  border-top:1px solid var(--rule);
+  padding-top:22px;
+}
+.cover-meta div span{
+  display:block;
+  color:var(--ink-faint);
+  font-size:10px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.cover-meta div b{
+  color:var(--ink);
+  font-weight:700;
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:13.5px;
+}
+.cover-meta .author{display:inline-flex; align-items:center; gap:8px;}
+.cover-meta .author img{width:22px; height:22px; border-radius:50%; object-fit:cover; display:block; filter:grayscale(1);}
+
+.pipeline{
+  max-width:760px;
+  margin:0 auto;
+  padding:26px 40px 30px;
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  overflow-x:auto;
+  border-bottom:1px solid var(--rule);
+  background:var(--paper-raised);
+}
+.pl-step{
+  flex:1 0 auto;
+  min-width:104px;
+  padding:6px 14px;
+  position:relative;
+  font-family:"IBM Plex Mono",monospace;
+}
+.pl-step .n{
+  font-size:10px;
+  color:var(--accent);
+  letter-spacing:.08em;
+}
+.pl-step .t{
+  font-size:12.5px;
+  color:var(--ink);
+  font-weight:700;
+  margin-top:3px;
+  line-height:1.4;
+}
+.pl-step:not(:last-child)::after{
+  content:"→";
+  position:absolute;
+  right:-2px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--ink-faint);
+  font-size:13px;
+}
+
+.chapter{
+  border-top:1px solid var(--rule-strong);
+  padding-top:46px;
+  margin-top:10px;
+}
+.chapter:first-of-type{border-top:none;}
+.chapter-head{
+  display:flex;
+  align-items:baseline;
+  gap:16px;
+  margin-bottom:8px;
+}
+.chapter-num{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:13px;
+  color:var(--accent2);
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+.chapter-stage{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.chapter h2{
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
+  font-weight:700;
+  font-size:26px;
+  margin:6px 0 30px;
+  text-wrap:balance;
+}
+.lede{
+  font-size:15.5px;
+  color:var(--ink-soft);
+  border-left:3px solid var(--accent);
+  padding-left:18px;
+  margin:0 0 34px;
+  text-wrap:balance;
+}
+
+.chapter h3{
+  font-family:"Hanken Grotesk","Noto Sans JP",sans-serif;
+  font-size:18.5px;
+  font-weight:700;
+  margin:38px 0 14px;
+}
+.chapter p{margin:0 0 20px;}
+
+.spec{
+  background:var(--paper-raised);
+  border:1px solid var(--rule);
+  border-left:3px solid var(--accent2);
+  border-radius:2px;
+  padding:20px 22px 6px;
+  margin:28px 0;
+  page-break-inside:avoid;
+  break-inside:avoid;
+}
+.spec-title{
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12.5px;
+  font-weight:700;
+  letter-spacing:.04em;
+  color:var(--accent2);
+  margin-bottom:10px;
+}
+
+.code-wrap{
+  margin:24px 0;
+  page-break-inside:avoid;
+  break-inside:avoid;
+}
+.code-label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;
+  color:var(--ink-faint);
+  margin-bottom:6px;
+  letter-spacing:.05em;
+}
+pre{
+  background:var(--code-bg);
+  color:var(--code-ink);
+  padding:18px 20px;
+  border-radius:3px;
+  overflow-x:auto;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;
+  line-height:1.7;
+  margin:0;
+}
+pre .k{color:var(--code-accent2);}
+pre .c{color:var(--code-accent);}
+code{
+  font-family:"IBM Plex Mono",monospace;
+  background:var(--paper-raised);
+  padding:1px 5px;
+  border-radius:2px;
+  font-size:.9em;
+  border:1px solid var(--rule);
+}
+
+.chapter a, .cover a, .footnotes a{
+  color:var(--accent2);
+  text-decoration-color:var(--rule-strong);
+  text-underline-offset:2px;
+}
+.chapter a:visited, .cover a:visited, .footnotes a:visited{color:var(--accent2);}
+.chapter a:hover, .cover a:hover, .footnotes a:hover{color:var(--accent);}
+
+.diagram{
+  margin:30px 0;
+  border:1px solid var(--rule);
+  background:var(--paper-raised);
+  padding:22px;
+  page-break-inside:avoid;
+}
+.diagram-title{
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink-faint);
+  margin-bottom:14px;
+}
+.dg-row{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+.dg-box{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  border:1px solid var(--rule-strong);
+  background:var(--paper);
+  padding:10px 13px;
+  border-radius:2px;
+  text-align:center;
+  line-height:1.5;
+}
+.dg-box b{display:block;font-size:12.5px;color:var(--ink);font-family:"Noto Sans JP",sans-serif;}
+.dg-box small{color:var(--ink-faint);font-size:10px;}
+.dg-box.hot{border-color:var(--accent);}
+.dg-box.hot b{color:var(--accent);}
+.dg-box.gpu{border-color:var(--accent2);}
+.dg-box.gpu b{color:var(--accent2);}
+.dg-arrow{
+  color:var(--ink-faint);
+  padding:0 8px;
+  font-size:14px;
+}
+.dg-col{display:flex; flex-direction:column;}
+.dg-step{
+  border:1px solid var(--rule-strong);
+  background:var(--paper);
+  border-radius:2px;
+  padding:12px 16px;
+  line-height:1.6;
+}
+.dg-step b{display:block; font-size:13.5px; color:var(--ink); font-family:"Noto Sans JP",sans-serif;}
+.dg-step small{display:block; color:var(--ink-soft); font-size:12px; margin-top:2px;}
+.dg-step .code-note{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint);}
+.dg-step.hot{border-color:var(--accent);} .dg-step.hot b{color:var(--accent);}
+.dg-step.gpu{border-color:var(--accent2);} .dg-step.gpu b{color:var(--accent2);}
+.dg-down{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  color:var(--ink-faint);
+  padding:7px 0 7px 18px;
+}
+
+table.data{
+  width:100%;
+  border-collapse:collapse;
+  margin:24px 0;
+  font-size:13.5px;
+}
+table.data caption{
+  text-align:left;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--ink-soft);
+  margin-bottom:10px;
+  caption-side:top;
+}
+table.data th{
+  text-align:left;
+  font-family:"Noto Sans JP",sans-serif;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink-soft);
+  border-bottom:1px solid var(--rule-strong);
+  padding:8px 14px 8px 0;
+}
+table.data td{
+  border-bottom:1px solid var(--rule);
+  padding:10px 14px 10px 0;
+  vertical-align:top;
+}
+table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
+table.data td.label{font-weight:700;white-space:nowrap;}
+
+sup.fnref{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10px;
+  color:var(--accent2);
+  margin-left:1px;
+}
+sup.fnref a{color:inherit;text-decoration:none;}
+.footnotes{
+  margin-top:34px;
+  padding-top:16px;
+  border-top:1px solid var(--rule);
+}
+.footnotes ol{
+  margin:0;
+  padding-left:1.3em;
+  font-size:12.5px;
+  color:var(--ink-soft);
+  line-height:1.7;
+}
+.footnotes li{margin-bottom:8px;}
+.footnotes li:target,.footnotes li:target::marker{color:var(--accent);}
+
+.embed{margin:28px 0;}
+.embed img, .embed video{width:100%; height:auto; border:1px solid var(--rule-strong); border-radius:2px; display:block;}
+.embed.portrait img, .embed.portrait video{max-width:320px; margin:0 auto;}
+.embed.portrait .embed-caption{max-width:320px; margin-left:auto; margin-right:auto; text-align:center;}
+.embed-caption{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint); margin-top:8px;}
+
+.signature{
+  margin-top:56px;
+  padding-top:22px;
+  border-top:1px solid var(--rule);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  font-size:13px;
+  color:var(--ink-faint);
+  font-family:"IBM Plex Mono",monospace;
+}
+
+.pagefoot{
+  max-width:760px;
+  margin:0 auto;
+  padding:30px 40px 60px;
+  color:var(--ink-faint);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  text-align:center;
+  letter-spacing:.05em;
+}
+
+.site-header{
+  position:sticky;
+  top:0;
+  z-index:50;
+  width:100%;
+  background:color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--rule);
+}
+.site-header-inner{
+  max-width:760px;
+  margin:0 auto;
+  padding:16px 40px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+}
+.site-header .brand{
+  display:inline-flex;
+  align-items:center;
+  line-height:0;
+  opacity:.95;
+  transition:opacity .15s ease;
+}
+.site-header .brand:hover{opacity:1;}
+.site-header img{
+  height:40px;
+  width:auto;
+  display:block;
+}
+.site-nav{
+  display:flex;
+  gap:22px;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12.5px;
+  letter-spacing:.04em;
+}
+.site-nav a{
+  color:var(--ink-faint);
+  text-decoration:none;
+}
+.site-nav a:hover{color:var(--accent);}
+.site-nav a[aria-current="page"]{color:var(--ink);}
+
+@media print{
+  .site-header{display:none;}
+  body{background:#fff;color:#111;font-size:11pt;}
+  .page,.cover,.pipeline,.pagefoot{max-width:none;padding-left:0;padding-right:0;}
+  @page{size:A4;margin:24mm 18mm;}
+  .chapter{page-break-before:always;border-top:none;padding-top:0;}
+  .chapter:first-of-type{page-break-before:avoid;}
+  pre{background:#f0efe9;color:#111;border:1px solid #ccc;}
+  pre .k,pre .c{color:#111;font-weight:700;}
+  .spec{background:#fff;}
+  a{color:inherit;text-decoration:underline;}
+}
+
+@media (max-width:600px){
+  .page,.cover,.pipeline,.pagefoot{padding-left:20px;padding-right:20px;}
+  .site-header-inner{padding:12px 20px; gap:12px;}
+  .site-header img{height:32px;}
+  .site-nav{gap:10px 14px; font-size:11.5px; flex-wrap:wrap; justify-content:flex-end;}
+  table{display:block; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table tbody{display:table; width:100%;}
+  th,td{padding-right:10px;}
+  .diagram{padding:14px;}
+  pre{padding:14px 14px;}
+  p code, li code, td code{overflow-wrap:anywhere;}
+}
+</style>
+</head>
+<body>
+
+<article>
+
+<div class="site-header">
+  <div class="site-header-inner">
+    <a class="brand" href="https://meta-puppet.github.io/" aria-label="MetaPuppet トップへ戻る"><img src="../mp_logo.png" alt="MetaPuppet"></a>
+    <nav class="site-nav">
+      <a href="https://meta-puppet.github.io/pipeline/" aria-current="page">Pipeline</a>
+      <a href="https://meta-puppet.github.io/control/">Control</a>
+      <a href="https://meta-puppet.github.io/experience/">Experience</a>
+      <a href="https://meta-puppet.github.io/credits/">Credits</a>
+    </nav>
+  </div>
+</div>
+
+<section class="cover">
+  <div class="cover-kicker">Software Notes — MetaPuppet / Pipeline 補遺</div>
+  <h1>GPUを落とさない<br>ための実装</h1>
+  <p class="sub">Direct3D 11とCUDAを同じGPUに同居させたまま、シーン切り替えの数秒後に来るスパイクを消していった記録。<a href="../">本編</a>の第4章・第5章の続き。</p>
+  <div class="cover-meta">
+    <div><span>Author</span><b class="author"><img src="../kosuke.jpg" alt="">清水（ソフトウェア実装担当）</b></div>
+  </div>
+</section>
+
+<div class="pipeline">
+  <div class="pl-step"><div class="n">01</div><div class="t">クラッシュの<br>正体を知る</div></div>
+  <div class="pl-step"><div class="n">02</div><div class="t">犯人を<br>取り違える</div></div>
+  <div class="pl-step"><div class="n">03</div><div class="t">スパイクを<br>起こさない構造</div></div>
+  <div class="pl-step"><div class="n">04</div><div class="t">D3D11とCUDAの<br>取り合いを止める</div></div>
+  <div class="pl-step"><div class="n">05</div><div class="t">レビューで<br>残りを潰す</div></div>
+  <div class="pl-step"><div class="n">06</div><div class="t">運用側の<br>ガード</div></div>
+</div>
+
+<div class="page">
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Prologue</span>
+    <span class="chapter-stage">What actually happened</span>
+  </div>
+  <h2>まえがき</h2>
+
+  <div class="embed">
+    <img src="tdr_unity_error.png" alt="Unity Error: Failed to present D3D11 swapchain due to device reset/removed. This error can happen if you draw or dispatch very expensive workloads to the GPU, which can cause Windows to detect a GPU Timeout and reset the device.">
+    <div class="embed-caption">展示用ノートPC（RTX 5070 Laptop）で、シーンロードの約6秒後に毎回のように出ていたダイアログ。「回復不能なエラーなのでエディタを終了します」で締めくくられる</div>
+  </div>
+
+  <p>本編の第4章で、RVMの推論をONNX Runtimeの<a href="https://onnxruntime.ai/docs/execution-providers/CUDA-ExecutionProvider.html">CUDA EP</a>からTensorRTの直接呼び出しへ移した経緯を書いた。あれで推論そのものは動くようになった。ところが展示用のノートPCで通しの体験を回すと、今度は上の画面が出るようになった。Unityの描画バックエンドであるDirect3D 11<sup class="fnref" id="fnref-d3d11-p"><a href="#fn-d3d11-p">[1]</a></sup>が「デバイスがリセットされた」と言って、アプリごと落ちる。推論のエラーではない。GPUそのものが一度死んで、Windowsが生き返らせた、という意味のメッセージである。</p>
+
+  <p>この現象はTDR<sup class="fnref" id="fnref-tdr"><a href="#fn-tdr">[2]</a></sup>（Timeout Detection and Recovery）と呼ばれる。WindowsはGPUに投げた仕事が既定で2秒応答しないと、ドライバごとGPUをリセットする。リセットされた側のアプリから見ると、それまで持っていたテクスチャもバッファも全部無効になり、Unityはこれを回復不能として終了する。「重い描画をすると起きる」とダイアログには書いてあるが、実際に重い描画をしていたわけではない。GPUが2秒黙り込む原因は別のところにあった。この補遺は、その原因を取り違えながら追い詰め、最終的に「スパイクを起こさない構造」に落ち着くまでの記録である。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-d3d11-p">Direct3D 11（D3D11）。Windows上でGPUに描画命令を出すためのAPIの一つ。Unityの描画バックエンドとしても使われており、映像デコーダの出力やRVMの推論結果は、このDirect3D 11が管理するGPU上のメモリ（テクスチャ）としてやり取りされる。CUDAとの相互運用は、このDirect3D 11側のメモリをCUDA側からも直接読み書きできるようにする仕組みを指す。この補遺で「D3D11のタイムライン」と書いているのは、Unityの描画スレッドがこのAPIを通じてGPUに命令を積んでいく一本の列のことで、CUDA側の仕事もこの列に割り込む形で同じGPUを使う。</li>
+      <li id="fn-tdr"><a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/display/timeout-detection-and-recovery">Timeout Detection and Recovery</a>。Windowsのディスプレイドライバ基盤（WDDM）が持つ仕組みで、GPUに送った処理が一定時間（既定2秒）完了しないと、GPUがハングしたとみなしてドライバをリセットする。画面が固まったままにならないための保護機構だが、アプリ側から見るとD3D11デバイスが突然「removed」状態になり、GPU上に置いていたリソースをすべて失う。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 01</span>
+    <span class="chapter-stage">Wrong Suspect</span>
+  </div>
+  <h2>犯人を取り違える</h2>
+
+  <p>症状には特徴があった。落ちるのはいつも、チュートリアルからメインシーンへ切り替わった直後、ログに「Native Init() returned status=0」、つまり姿勢推定RTMPoseの初期化が成功したと出た直後だった。展示ビルドではRVMはすでにTensorRTで動いている。この時点でONNX RuntimeのCUDA EPを読み込んでいるのはRTMPoseだけだった。CUDA EPは、cuBLASとcuDNNを合わせて1GBを超えるDLL群を引き連れてくる。それをシーンの真ん中で、Unityの描画スレッドが同じGPUに毎フレーム命令を積んでいる最中に読み込む。GPUメモリが足りなくなればWDDMは他のリソースを退避させ、その退避が描画のPresentを止め、2秒を超えればTDRになる。筋は通っていた。</p>
+
+  <p>最初にやったのは、時間をずらすことだった。RTMPoseの初期化をシーンロードから最低6秒待たせ、ONNX Runtimeのグラフ最適化レベルもALLからBASICへ下げた。セッションを作るだけでGPUのタイムラインを止めるほど重かったからである。あわせて、体験の開始をRTMPoseの準備完了から切り離した。一人称のゲームプレイはQuestのハンドトラッキングだけで成立するので、姿勢推定を待つ理由がなかった。これで落ちる回数は減ったが、消えてはいない。スパイクの位置が6秒後ろへ動いただけで、スパイク自体はそこにあった。</p>
+
+  <p>次にやったのは、犯人と目していたCUDA EPを消すことだった。RTMPoseもRVMと同じくTensorRTの直接呼び出しに載せ替え、ビルドからcuBLAS・cuDNN・onnxruntime_providers_cudaを一切同梱しないようにした。展示PC側の検証スクリプトも、これらのDLLがプラグインフォルダに残っていたら失敗するようにした。これで解決したと思って展示PCで3回回したところ、2回落ちた。</p>
+
+  <div class="diagram">
+    <div class="diagram-title">スパイクの正体を追い詰める過程</div>
+    <div class="dg-col">
+      <div class="dg-step hot"><b>仮説1：ORT CUDA EPのDLL読み込み</b><small>cuBLAS + cuDNN &gt;1GBをシーン中に読み込むとVRAM退避でPresentが止まる → Init を6秒遅延、最適化レベルをBASICへ。落ちる位置が動いただけ</small></div>
+      <div class="dg-down">↓ 犯人そのものを取り除く</div>
+      <div class="dg-step hot"><b>RTMPoseをTensorRT直接呼び出しへ</b><small>CUDA EP・cuBLAS・cuDNNをビルドから完全排除。それでも3回中2回TDR</small></div>
+      <div class="dg-down">↓ 消去法で残ったもの</div>
+      <div class="dg-step"><b>真の正体：エンジンのデシリアライズと初回カーネルロード</b><small>TensorRTのplanをGPUに展開する処理と、CUDAモジュールの初回ロードが、ライブのD3D11タイムライン上で起きていた</small></div>
+      <div class="dg-down">↓ 起きる場所を変える</div>
+      <div class="dg-step gpu"><b>イントロ画面でのプリウォーム（第2章）</b><small>映像が来る前、描画が軽いうちに全部済ませておく</small></div>
+    </div>
+  </div>
+
+  <p>ここでようやく、DLLの読み込みが犯人ではなかったと分かった。残っていたのは、TensorRTのエンジンをplanファイルからGPUへ展開するデシリアライズと、CUDAのカーネルモジュールを初めて読み込むときのコストだった。どちらもONNX Runtimeを消しても消えない。ついでに一つ、自分で仕込んだ悪化要因も見つけた。CUDA EPを使っていた頃の設定を引きずって、CUDAモジュールの読み込み方式をEAGER（起動時に全部読む）にしていた。cuDNNの網羅的なアルゴリズム探索が初回推論に集中していた頃はそれが正しかったが、TensorRTではNVIDIA自身がLAZY<sup class="fnref" id="fnref-lazy"><a href="#fn-lazy">[1]</a></sup>を推奨している。planには実際に使う入力形状では呼ばれないカーネルの変種まで入っているので、全部を初期化の瞬間に読み込むのは、まさに軽くしたい瞬間を重くしていたことになる。LAZYへ戻し、環境変数に上書きされないよう3か所のコードで明示的に設定した。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-lazy"><code>CUDA_MODULE_LOADING</code>。CUDAが実行ファイルに埋め込まれたGPUカーネルをいつGPUへ読み込むかを決める設定で、EAGERは初期化時に全カーネルを、LAZYは初めて呼ばれたカーネルだけをその場で読み込む。CUDA 11.7以降の既定はLAZYだが、環境変数で上書きできるため、この実装では起動時にプログラム側から明示的にLAZYを設定している。<a href="https://docs.nvidia.com/deeplearning/tensorrt/latest/performance/best-practices.html">TensorRTのベストプラクティス</a>にも、初期化時間とピークメモリを減らすためにLAZYを使うよう書かれている。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 02</span>
+    <span class="chapter-stage">No Spike By Construction</span>
+  </div>
+  <h2>スパイクを起こさない構造にする</h2>
+
+  <p>重い処理を軽くする方向には限界がある。planのデシリアライズは、どうやっても数百ミリ秒から秒のオーダーでGPUを占有する。それなら、起きる時刻を選べばよい。参加者がイントロ画面でSTARTを押すまでの間、GPUはロゴを描いているだけでほとんど暇である。この時間に、あとで必要になるものを全部作っておき、DLLの中に駐車させておく。シーンが始まって映像が来たら、作り直すのではなく駐車場から引き取る。これが現在の構造で、<code>mppc_vision_prewarm</code>という名前のワーカーがイントロ画面の裏で4段階を進める。画面の左下に「GPU vision warm-up n/4」と出ているのがそれである。</p>
+
+  <div class="diagram">
+    <div class="diagram-title">プリウォームの4段階（イントロ画面中、映像が届く前に実行）</div>
+    <div class="dg-col">
+      <div class="dg-step"><b>1. CUDAランタイムとコンテキスト</b><small>cudart、D3D11と同じアダプタ上のCUDAプライマリコンテキスト、nvinferランタイム</small></div>
+      <div class="dg-down">↓</div>
+      <div class="dg-step"><b>2. RVMエンジン</b><small>planのデシリアライズ、実行コンテキスト、再帰状態r1〜r4のバンク</small></div>
+      <div class="dg-down">↓</div>
+      <div class="dg-step"><b>3. RTMPoseエンジンとD3D11前処理リソース</b><small>planのデシリアライズ、SimCC出力バッファ、前処理用コンピュートシェーダー、入力バッファとそのCUDA相互運用登録</small></div>
+      <div class="dg-down">↓</div>
+      <div class="dg-step gpu"><b>4. ゼロ入力でのウォームアップ</b><small>両エンジンを実際に1回走らせてカーネルを読み込ませ、RVMの再帰状態をリセットして駐車</small></div>
+    </div>
+  </div>
+
+  <p>難しかったのは、RVMもRTMPoseも「どのD3D11デバイスを使うか」をUnityから渡されるテクスチャで初めて知る設計だったことである。映像が届く前には、そもそも相手のデバイスが分からない。そこでプリウォームはD3D11のアダプタからCUDAデバイスを逆引きして先に作っておき、あとで本番の初期化が来たときに「同じデバイス・同じplan・同じ入力サイズ」であることを確認してから引き渡す。条件が一つでも合わなければ引き渡さず、従来どおりその場で作る。安全側に倒した設計だが、この「合わなければ黙って作り直す」が後で罠になった（第4章）。</p>
+
+  <p>もう一つ、エンジンのプリウォームだけではTDRは止まらなかった。RTMPoseの入力バッファ（D3D11のUAV<sup class="fnref" id="fnref-uav"><a href="#fn-uav">[1]</a></sup>付きバッファ）をCUDA側から見えるように登録する処理（<code>cudaGraphicsD3D11RegisterResource</code>）が、まだライブのタイムライン上で走っていたからである。この登録も、初回にだけ起きるD3D11とCUDAの重い握手の一つで、デシリアライズと同じ性質のスパイクを作る。前処理リソースの構築を関数に切り出し、プリウォームの第3段階で先に作って登録し、本番の初期化はそれを受け取るだけにした。</p>
+
+  <p>あわせて、体験のループ構造も変えた。以前は参加者が一人終わるたびにRVMとRTMPoseをシャットダウンし、次の参加者で初期化し直していた。これでは参加者のたびにスパイクの機会を作っていることになる。現在はワーカーとエンジンをプロセスの寿命いっぱい常駐させ、シーンの切り替えではpause/resumeするだけにしている。pauseはフレームの受け入れを止めるだけで、GPU上の資源には触らない。</p>
+
+  <p>この構成に切り替えてから、展示PCでの検証は3セッション、うち1セッションはRVMと姿勢推定を有効にしたまま5000フレーム以上を回して、例外ゼロ、CUDA相互運用エラーゼロ、TDRゼロだった。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-uav">Unordered Access View。D3D11でコンピュートシェーダーがバッファやテクスチャに任意の位置で読み書きするための「窓」。RTMPoseの前処理は、デコード済みのNV12映像をコンピュートシェーダーでリサイズ・色変換・正規化してこのバッファに書き込み、CUDA側がそのバッファをそのまま推論の入力として読む。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 03</span>
+    <span class="chapter-stage">D3D11 / CUDA Contention</span>
+  </div>
+  <h2>D3D11とCUDAの取り合いを止める</h2>
+
+  <p>プリウォームを展示PCで試した夜に、もう一つ別種の問題が見つかった。症状は「たまにきれいなCUDA相互運用エラーで止まり、たまにエラーログを一行も残さずTDRで落ちる」。タイミングで結果が変わるというのは、典型的な競合の症状である。</p>
+
+  <p>原因は、RTMPoseの初期化がバックグラウンドスレッドで、Unityの描画スレッドと同じD3D11デバイスを無防備に触っていたことだった。D3D11のデバイスコンテキストは本来スレッドセーフではない。Unityは<code>ID3D11Multithread</code><sup class="fnref" id="fnref-multithread"><a href="#fn-multithread">[1]</a></sup>を有効にして保護しているが、それは「保護に参加した側」だけを守る。推論のたびに行うCUDAとD3D11の所有権の受け渡し（map/unmap）にはすでにこのロックをかけていたのに、初期化時のデバイス問い合わせやリソース登録にはかけていなかった。描画スレッドがPresentしている最中にCUDAが同じデバイスのリソースを登録しにいくと、運がよければエラー、運が悪ければドライバがGPUごと止まる。初期化側も同じロックで囲み、ついでにエラーの中身を<code>cudaGetErrorString</code>と<code>GetDeviceRemovedReason</code>から文字列として取り出し、Unity側に「ステータス -2011」ではなく理由が読める形で返すようにした。</p>
+
+  <div class="spec">
+    <div class="spec-title">D3D11とCUDAが同じGPUを使うときの取り決め（現行）</div>
+    <table class="data">
+      <tr><th>場面</th><th>取り決め</th></tr>
+      <tr><td>初期化（デバイス問い合わせ、リソース登録）</td><td>描画スレッドと同じ<code>ID3D11Multithread</code>のEnter/Leaveで囲む。以前は無防備</td></tr>
+      <tr><td>推論のたびの所有権の受け渡し</td><td>map/unmapの瞬間だけロック。推論本体はロックの外で走らせる。推論の間ずっと握ると、Presentがその時間止まってTDRの原因になる</td></tr>
+      <tr><td>マスクのテクスチャ書き戻し（描画スレッド側）</td><td>ロックが取れなければ待たずにそのフレームを飛ばし、前のマスクを使い続ける（第4章）</td></tr>
+      <tr><td>CUDAカーネルの読み込み</td><td>LAZYを明示設定。初期化の瞬間に全部読まない</td></tr>
+      <tr><td>planファイル</td><td>GPUとドライバの組み合わせごとの成果物として扱い、展示PC上で生成する。リポジトリには入れない</td></tr>
+      <tr><td>同梱するランタイム</td><td>nvinferのみ。ORT CUDA EP・cuBLAS・cuDNNのDLLが残っていたら検証スクリプトが失敗する</td></tr>
+      <tr><td>失敗の可視化</td><td>ステータスコードに加えて、CUDA/D3D11の理由文字列を<code>mppc_pose_get_last_error</code>で返す</td></tr>
+    </table>
+  </div>
+
+  <p>「ドライバとCUDAの不整合」と一言で呼んでいたものは、実際には二つに分けられる。一つは時間軸上の取り合いで、これは上のロックの取り決めで止まる。もう一つはバージョンの不整合で、TensorRTのplanファイルはビルドしたGPUの世代とドライバに縛られている。別のPCで作ったplanを持ち込むと、動かないならまだしも、動いたふりをして遅かったり不安定だったりする。だからplanは展示PC上で<code>prepare_rvm_tensorrt.ps1</code>と<code>prepare_rtmpose_tensorrt.ps1</code>で作る手順にし、リポジトリには置かない。ビルド自体も、TensorRT版ではONNX RuntimeのCUDA EPとその依存DLLを同梱しないようCMakeで切り、古いDLLがプラグインフォルダに残っている状態を検証スクリプトが弾く。「消したはずのものが残っていて別の経路で読み込まれる」というのは、第1章で3回中2回落ちたときにも疑った類の混乱で、これを構造的に起きなくしておきたかった。</p>
+
+  <div class="footnotes">
+    <ol>
+      <li id="fn-multithread"><a href="https://learn.microsoft.com/en-us/windows/win32/api/d3d10/nn-d3d10-id3d10multithread"><code>ID3D11Multithread</code></a>。D3D11の即時コンテキストを複数スレッドから使うときに、呼び出しを直列化するためのインターフェース。<code>Enter()</code>と<code>Leave()</code>でクリティカルセクションに入る。Unityは自前の描画スレッドを守るためにこれを有効にしているが、ネイティブプラグイン側が同じデバイスを触るときは、プラグイン側も明示的にEnter/Leaveしない限り守られない。CUDAの<code>cudaGraphicsMapResources</code>はD3D11のコンテキストを内部で使うにもかかわらず、この保護を自動では通らない。</li>
+    </ol>
+  </div>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 04</span>
+    <span class="chapter-stage">Post-merge Review</span>
+  </div>
+  <h2>レビューで残りを潰す</h2>
+
+  <p>ここまでの変更を本線に取り込んだあと、差分約6000行を改めてレビューにかけた。方針として、展示までは1〜4行で済む局所的な修正だけを入れ、状態機械の統合やファイル分割のような設計変更は展示後に回すことに決めた。動いている構成をいじる方が、残っているバグより危ないからである。見つかったものの中で、体験に直接響くものを挙げる。</p>
+
+  <table class="data">
+    <caption>レビューで見つかった問題と修正</caption>
+    <tr><th>問題</th><th>何が起きるか</th><th>修正</th></tr>
+    <tr><td>プリウォーム済みエンジンが一度も引き取られていなかった</td><td>プリウォーム側はUnityの<code>Path.Combine</code>（スラッシュ区切り）、本番側は<code>Path.GetFullPath</code>（バックスラッシュ）でplanのパスを作っており、文字列の完全一致で比較していたので必ず不一致になる。第2章の「合わなければ黙って作り直す」が毎回発動し、ライブのデシリアライズが残っていた</td><td>比較を<code>lexically_normal()</code>で正規化した形に変更（2行）</td></tr>
+    <tr><td>マスク処理だけの失敗でプロセス全体がロックされる</td><td>RVMの初期化失敗が「最終シャットダウン」経路に流れ、以後ステレオ映像の開始も拒否される（戻り値 -6）。以前は「マスク無しで映像は続く」だった</td><td>マスクだけ止めて映像は続ける経路に戻し、-6のときは専用のログ行を出す</td></tr>
+    <tr><td>姿勢推定が一度こけると二度と戻らない</td><td>シーン切り替えでシャットダウンではなくpauseを使うようになったため、失敗フラグを消す機会がなくなっていた</td><td>同じ設定での再初期化で失敗フラグをクリア（1行）</td></tr>
+    <tr><td>初期化中のpauseでプリウォーム済みエンジンを捨てる</td><td>キャリブレーションが速い参加者だと、姿勢推定のウォームアップ中にpauseが入り、引き取ったばかりのエンジンとCUDA登録を破棄して次回ライブで作り直す</td><td>キャンセル時はエンジンを保持し、次のresumeではウォームアップだけやり直す</td></tr>
+    <tr><td>描画スレッドがマスク初期化の完了を待ってしまう</td><td>マスク書き戻しが初期化と同じロックを取りにいき、ウォームアップの間ステレオ表示が止まる</td><td>描画スレッド側はtry-lockにし、取れなければそのフレームを飛ばして前のマスクを使う</td></tr>
+    <tr><td>resumeがデコーダを不要にリセットする</td><td>GPU直接パスがまだ有効になる前にpauseが入ると、健全なデコーダを壊してキーフレームを要求し直す。手動でGPU直接パスを切った設定も勝手に戻す</td><td>ホスト側の明示的な無効化を別フラグで持ち、resumeでは触らない。健全なresumeでもIDRだけは要求する</td></tr>
+  </table>
+
+  <p>一番上の項目は、素直に言って恥ずかしい。第2章で「5000フレーム回してTDRゼロ」と書いたが、その検証のとき、RVM側のプリウォームは実は空振りしていたことになる。TDRが出なかったのは、第3章のロックとLAZY、それに姿勢推定側のプリウォーム（こちらは偶然両方が同じパスの作り方だった）が効いていたからで、RVM側はまだライブでデシリアライズしていた。安全側に倒した「合わなければ作り直す」設計は、失敗しても症状として現れないので、こういう見落としを隠す。修正は2行だが、見つけるのに人間1人とAI 3体のレビューが要った。</p>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Chapter 05</span>
+    <span class="chapter-stage">Operational Guards</span>
+  </div>
+  <h2>運用側のガード</h2>
+
+  <p>コードで潰せるものは潰したうえで、当日それでも起きたときの判断をランブックに書いた。判断材料はすべてPlayer.logの特定の行にしてある。</p>
+
+  <div class="spec">
+    <div class="spec-title">当日チェックと障害時の判断</div>
+    <table class="data">
+      <tr><th>確認すること</th><th>基準</th></tr>
+      <tr><td>プリウォームが本当に効いているか</td><td class="num">イントロで「GPU vision warm-up 4/4」。ログに<code>vision-prewarm-ready</code>があり、その後の<code>segmentation-init</code>が300 ms未満</td></tr>
+      <tr><td>プロセスがロックされていないか</td><td class="num"><code>stereo start refused</code>または戻り値<code>-6</code>が出たらアプリ再起動。F6のBoot再初期化では戻らない</td></tr>
+      <tr><td>フォールバックビルドへ切り替える条件</td><td class="num">同日にTDRか<code>-6</code>が2回目。パススルー無しの代替ビルドを用意してある</td></tr>
+      <tr><td>展示前のソークテスト</td><td class="num">20人分を通しで回し、TDRゼロ、-6ゼロ、全員がRVMフェーズに到達、姿勢推定の準備完了が19/20以上</td></tr>
+      <tr><td>インストール先</td><td class="num">ASCIIのみのパス。ネイティブ側のエラー文字列がUTF-8のまま渡るため、日本語フォルダだと原因が読めなくなる</td></tr>
+    </table>
+  </div>
+
+  <p>特に最初の項目は、第4章の教訓そのものである。プリウォームが効いているかどうかは、画面上は何も変わらない。効いていなくても体験は始まるし、TDRが出るかどうかは確率の問題になる。だから「効いている証拠」を数値で決めて、当日の朝に見る。</p>
+</section>
+
+<section class="chapter">
+  <div class="chapter-head">
+    <span class="chapter-num">Epilogue</span>
+    <span class="chapter-stage">Summary</span>
+  </div>
+  <h2>あとがき</h2>
+
+  <p>本編の第4章は「動かない推論を動かす」話だったが、この補遺は「動いている推論がGPUを道連れにしないようにする」話である。やったことを一行で言えば、重い処理を軽くしたのではなく、重い処理が起きる時刻と場所を選び直した、というだけになる。イントロ画面という誰も見ていない時間に全部済ませ、シーン中は引き取るだけにする。D3D11とCUDAが同じデバイスを触る瞬間は必ず同じロックを通す。planはそのPCで作る。消したはずのDLLは検証で弾く。</p>
+
+  <p>そして、その構造が本当に効いているかは、動いている画面を見ても分からなかった。「落ちなくなった」は「直った」の証拠にならない、というのがこの補遺の一番の教訓かもしれない。パスの区切り文字1つで空振りしていたプリウォームは、ログの1行を基準に決めておかなければ、展示当日まで空振りし続けていたはずである。</p>
+
+  <div class="signature">
+    <div>MetaPuppet — Software Implementation Notes / Stability</div>
+    <div>清水</div>
+  </div>
+
+</section>
+
+</div>
+
+<div class="pagefoot">MetaPuppet</div>
+
+</article>
+</body>
+</html>
