@@ -208,6 +208,7 @@ body{
   font-size:13px;
 }
 
+.chapter{scroll-margin-top:80px;}
 .chapter{
   border-top:1px solid var(--rule-strong);
   padding-top:46px;
@@ -573,7 +574,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
 
 <div class="page">
 
-<section class="chapter">
+<section class="chapter" id="prologue">
   <div class="chapter-head">
     <span class="chapter-num">Prologue</span>
     <span class="chapter-stage">Overview</span>
@@ -585,7 +586,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   <p>このパイプラインは、大きく分けて4つの実装からできている。ステレオカメラ本体とRaspberry Pi上でのH.264エンコード、PCへの独自UDP伝送、PC上でのRVM(Robust Video Matting)による人物マスキングと姿勢推定、そしてQuestの手指トラッキングとの合成を経てVRへステレオ描画するところまで。このどれか一つが欠けても体験は成立しない。</p>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch01">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 01</span>
     <span class="chapter-stage">Latency Budget</span>
@@ -631,7 +632,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch02">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 02</span>
     <span class="chapter-stage">Stereo Capture / Encode</span>
@@ -680,7 +681,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch03">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 03</span>
     <span class="chapter-stage">Custom UDP Transport</span>
@@ -732,7 +733,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch04">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 04</span>
     <span class="chapter-stage">GPU Segmentation Backend</span>
@@ -815,7 +816,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch05">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 05</span>
     <span class="chapter-stage">GPU-Resident Pipeline / Pose / Hand Tracking</span>
@@ -873,7 +874,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="ch06">
   <div class="chapter-head">
     <span class="chapter-num">Chapter 06</span>
     <span class="chapter-stage">VR Display Shader</span>
@@ -902,7 +903,7 @@ sup.fnref a{color:inherit;text-decoration:none;}
   </div>
 </section>
 
-<section class="chapter">
+<section class="chapter" id="epilogue">
   <div class="chapter-head">
     <span class="chapter-num">Epilogue</span>
     <span class="chapter-stage">Summary</span>
