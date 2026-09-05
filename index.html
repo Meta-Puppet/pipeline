@@ -402,8 +402,11 @@ table.data td{
   padding:10px 14px 10px 0;
   vertical-align:top;
 }
-table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
-table.data td.label{font-weight:700;white-space:nowrap;}
+table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;}
+table.data{table-layout:fixed;}
+table.data th:first-child, table.data td:first-child{width:38%;}
+table.data td{overflow-wrap:anywhere;}
+table.data td.label{font-weight:700;}
 
 sup.fnref{
   font-family:"IBM Plex Mono",monospace;

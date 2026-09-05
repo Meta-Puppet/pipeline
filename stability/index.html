@@ -394,8 +394,11 @@ table.data td{
   padding:10px 14px 10px 0;
   vertical-align:top;
 }
-table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;white-space:nowrap;}
-table.data td.label{font-weight:700;white-space:nowrap;}
+table.data td.num{font-family:"IBM Plex Mono",monospace;color:var(--accent2);font-weight:700;}
+table.data{table-layout:fixed;}
+table.data th:first-child, table.data td:first-child{width:38%;}
+table.data td{overflow-wrap:anywhere;}
+table.data td.label{font-weight:700;}
 
 sup.fnref{
   font-family:"IBM Plex Mono",monospace;
@@ -781,11 +784,11 @@ sup.fnref a{color:inherit;text-decoration:none;}
     <div class="spec-title">当日チェックと障害時の判断</div>
     <table class="data">
       <tr><th>確認すること</th><th>基準</th></tr>
-      <tr><td>プリウォームが本当に効いているか</td><td class="num">イントロで「GPU vision warm-up 4/4」。ログに<code>vision-prewarm-ready</code>があり、その後の<code>segmentation-init</code>が300 ms未満</td></tr>
-      <tr><td>プロセスがロックされていないか</td><td class="num"><code>stereo start refused</code>または戻り値<code>-6</code>が出たらアプリ再起動。F6（スタッフ用の、アプリを終了せずにBootから再初期化するキー）では戻らない</td></tr>
-      <tr><td>フォールバックビルドへ切り替える条件</td><td class="num">同日にTDRか<code>-6</code>が2回目。パススルー無しの代替ビルドを用意してある</td></tr>
-      <tr><td>展示前のソークテスト（長時間の連続稼働試験）</td><td class="num">20人分を通しで回し、TDRゼロ、-6ゼロ、全員がRVMフェーズに到達、姿勢推定の準備完了が19/20以上</td></tr>
-      <tr><td>インストール先</td><td class="num">ASCIIのみのパス。ネイティブ側のエラー文字列がUTF-8のまま渡るため、日本語フォルダだと原因が読めなくなる</td></tr>
+      <tr><td>プリウォームが本当に効いているか</td><td>イントロで「GPU vision warm-up 4/4」。ログに<code>vision-prewarm-ready</code>があり、その後の<code>segmentation-init</code>が300 ms未満</td></tr>
+      <tr><td>プロセスがロックされていないか</td><td><code>stereo start refused</code>または戻り値<code>-6</code>が出たらアプリ再起動。F6（スタッフ用の、アプリを終了せずにBootから再初期化するキー）では戻らない</td></tr>
+      <tr><td>フォールバックビルドへ切り替える条件</td><td>同日にTDRか<code>-6</code>が2回目。パススルー無しの代替ビルドを用意してある</td></tr>
+      <tr><td>展示前のソークテスト（長時間の連続稼働試験）</td><td>20人分を通しで回し、TDRゼロ、-6ゼロ、全員がRVMフェーズに到達、姿勢推定の準備完了が19/20以上</td></tr>
+      <tr><td>インストール先</td><td>ASCIIのみのパス。ネイティブ側のエラー文字列がUTF-8のまま渡るため、日本語フォルダだと原因が読めなくなる</td></tr>
     </table>
   </div>
 
