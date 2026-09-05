@@ -162,7 +162,7 @@ body{
 .pipeline{
   max-width:760px;
   margin:0 auto;
-  padding:26px 40px 30px;
+  padding:24px 20px 26px;
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(82px, 1fr));
   align-items:stretch;
@@ -173,7 +173,7 @@ body{
 }
 .pl-step{
   min-width:0;
-  padding:6px 12px 6px 6px;
+  padding:6px 9px 6px 4px;
   position:relative;
   font-family:"IBM Plex Mono",monospace;
 }
@@ -183,7 +183,8 @@ body{
   letter-spacing:.08em;
 }
 .pl-step .t{
-  font-size:12.5px;
+  font-size:11px;
+  letter-spacing:-.01em;
   color:var(--ink);
   font-weight:700;
   margin-top:3px;
@@ -532,7 +533,8 @@ sup.fnref a{color:inherit;text-decoration:none;}
 @media (max-width:600px){
   .pipeline{grid-template-columns:repeat(2, 1fr); row-gap:6px;}
   .pl-step:not(:last-child)::after{content:none;}
-  .page,.cover,.pipeline,.pagefoot{padding-left:20px;padding-right:20px;}
+  .page,.cover,.pagefoot{padding-left:20px;padding-right:20px;}
+  .pipeline{padding-left:16px;padding-right:16px;}
   .site-header-inner{padding:12px 20px; gap:12px;}
   .site-header img{height:32px;}
   .site-nav{gap:10px 14px; font-size:11.5px; flex-wrap:wrap; justify-content:flex-end;}
