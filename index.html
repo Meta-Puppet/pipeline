@@ -831,6 +831,18 @@ sup.fnref a{color:inherit;text-decoration:none;}
     </table>
   </div>
 
+  <p>TensorRTの直接呼び出しに載せ替えたあとの、展示シーンでの検証の様子。改良前と比べると、腕を振っても輪郭が追従し、マスクが塊ごと欠けることはなくなった。</p>
+
+  <div class="embed">
+    <img src="rvm_tensorrt.gif" alt="TensorRT直接呼び出しに載せ替えたRVMの検証。展示シーンの台座の上で、切り出された人物が両腕を振っている" loading="lazy">
+    <div class="embed-caption">TensorRT 11.2.1 直接呼び出しへ移行後のRVM。展示シーンでの検証</div>
+  </div>
+
+  <div class="embed">
+    <img src="rvm_before_after.gif" alt="左：改良前（CUDA EP）のRVM。マスクが欠けてちらつく。右：TensorRT直接呼び出しの現行実装。輪郭が腕の動きに追従している" loading="lazy">
+    <div class="embed-caption">左：改良前（ONNX Runtime CUDA EP、第5章の動画と同じもの）。右：現行のTensorRT直接呼び出し</div>
+  </div>
+
   <p>推論が動くようになったあとも、展示PCではシーン切り替えの直後にGPUごと落ちるTDRクラッシュが残っていた。その追跡と、D3D11とCUDAを同居させたままスパイクを消していった経緯は、長くなるので<a href="stability/">補遺「GPUを落とさないための実装」</a>に分けて書いている。</p>
 
   <div class="footnotes">
